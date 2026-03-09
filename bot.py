@@ -102,6 +102,23 @@ def handle_all(message):
     # 2. AI RESPONSE (Isme AI khud bhi gaali pehchan lega)
     bot.send_chat_action(message.chat.id, 'typing')
     response = get_ai_response(message.text)
-    bot.reply_to(message, response)
+    bot.reply_to(message, response
+from flask import Flask
+from threading import Thread
 
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "I am alive!"
+
+def run():
+  app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
+
+# Apne bot.infinity_polling() se upar ye line likho
+keep_alive()
 bot.infinity_polling()
