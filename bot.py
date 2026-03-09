@@ -360,4 +360,3 @@ if __name__ == "__main__":
     threading.Thread(target=background_monitor, daemon=True).start()
     print("Maha-Bot chalu ho gaya sa!")
     bot.infinity_polling()
-    
