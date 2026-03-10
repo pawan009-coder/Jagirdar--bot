@@ -23,6 +23,7 @@ bot = telebot.TeleBot(API_TOKEN)
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
     BotCommand("bal", "Apna khaata aur level dekhein"),
+    BotCommand("toprank", "top 10 rich player of game"),
     BotCommand("daily", "Har 24 ghante ka inam"),
     BotCommand("weekly", "Har 7 din mein 2000 Rs"),
     BotCommand("dart", "Kismat azmayein (/dart amount)"),
