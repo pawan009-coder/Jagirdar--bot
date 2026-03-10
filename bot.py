@@ -134,6 +134,10 @@ def check_bal(message):
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
+    # Agar Admin shield command lagata hai
+    if message.from_user.id == ADMIN_ID:
+        return bot.reply_to(message, "👑 **Boss!** Aap Admin ho, aapki Shield hamesha ke liye UNLIMITED hai. Aapko kharidne ki koi zaroorat nahi!")
+        
     if message.chat.type != 'private':
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("DM Me Aao", url=f"https://t.me/{bot.get_me().username}?start=shield"))
@@ -142,10 +146,10 @@ def shield_req(message):
 
 def buy_shield(message):
     u = get_user(message.from_user)
-    if u['bal'] < 500: return bot.send_message(message.chat.id, "❌ 500 rs chahiye!")
+    if u['bal'] < 500: return bot.send_message(message.chat.id, "❌ Shield ke liye 500 rs chahiye!")
     u['bal'] -= 500
-    u['shield_until'] = time.time() + 86400
-    bot.send_message(message.chat.id, "🛡️ SHIELD ACTIVATED! 24 ghante tak safe ho.")
+    u['shield_until'] = time.time() + 86400 # 24 Hours
+    bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
