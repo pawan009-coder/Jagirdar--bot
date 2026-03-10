@@ -170,6 +170,29 @@ def check_bal(message):
             f"💳 Loan: {loan_status}\n"
             f"⚠️ Warnings: {u['warns']}")
     bot.reply_to(message, text)
+    @bot.message_handler(commands=['returnloan'])
+def repay_loan(message):
+    u = get_user(message.from_user)
+    
+    # Check karega ki udhar hai ya nahi
+    if not u['loan']['active']:
+        return bot.reply_to(message, "❌ Aap par koi udhar nahi hai sa! Ekdum clear ho.")
+
+    due_amount = u['loan']['amount']
+    lender_id = u['loan']['lender_id']
+
+    # Check karega ki chukane ke liye paise hain ya nahi
+    if u['bal'] < due_amount:
+        return bot.reply_to(message, f"❌ Aapke paas poore paise nahi hain!\nUdhar chukane ke liye **{due_amount} Rs** chahiye, par aapki jeb mein sirf **{u['bal']} Rs** hain.")
+
+    # Paise kaat kar lender ko dena
+    u['bal'] -= due_amount
+    if lender_id in users:
+        users[lender_id]['bal'] += due_amount
+    
+    # Loan status clear karna
+    u['loan']['active'] = False
+    bot.reply_to(message, f"✅ **UDHAR CHUKTA!**\nAapne apna **{due_amount} Rs** ka udhar izzat ke saath wapas kar diya hai. Ab aap par koi karza nahi hai sa!")
 
 @bot.message_handler(commands=['shield'])
 def buy_shield(message):
@@ -255,12 +278,9 @@ def rob_cmd(message):
     if random.choice([True, False]): # 50% Chance
         loot = int(t_user['bal'] * random.uniform(0.1, 0.25))
         t_user['bal'] -= loot
-        r_user['bal'] += loot
         bot.reply_to(message, f"🥷 **CHORI SUCCESS!**\nAapne {t_name} ki jeb kaat li aur {loot} rs loot liye! 💰")
     else:
-        r_user['bal'] -= 100
-        bot.reply_to(message, "🚨 **PAKDE GAYE!**\nChori nakam rahi aur 100 rs fine laga!")
-
+        
 @bot.message_handler(commands=['daily', 'dart'])
 def play_games(message):
     u = get_user(message.from_user)
@@ -283,7 +303,7 @@ def play_games(message):
 
     # REMINDER SYSTEM
     if u['loan']['active'] and u['bal'] >= u['loan']['amount']:
-        try: bot.send_message(message.from_user.id, f"🔔 **REMINDER!**\nAapke paas paise aa gaye hain! Apna {u['loan']['amount']} rs ka udhar jaldi chukao!")
+        try: bot.send_message(message.from_user.id, f"🔔 **REMINDER!**\nAapke paas paise aa gaye hain! Apna {u['loan']['amount']} rs ka udhar jaldi chukao! loan chukane ke liye /return command dalo")
         except: pass
 
 # ==========================================
