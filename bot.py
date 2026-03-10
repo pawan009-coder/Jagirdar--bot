@@ -115,6 +115,17 @@ def start_cmd(message):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Join Group", url="https://t.me/Daimondbatch"))
     bot.reply_to(message, "👑 Khamma Ghani! Jodhpur King Bot mein swagat hai.", reply_markup=markup)
+    @bot.message_handler(commands=['gift'])
+def gift_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    if not message.reply_to_message: return bot.reply_to(message, "❌ Reply karke amount likho: /gift 5000")
+    try:
+        amt = int(message.text.split()[1])
+        t_obj = message.reply_to_message.from_user
+        get_user(t_obj)['bal'] += amt
+        bot.reply_to(message, f"🎁 **GIFT SENT!**\nAdmin ne {t_obj.first_name} ko {amt} Rs free mein diye hain! 🎉")
+    except: 
+        bot.reply_to(message, "❌ Sahi Format: /gift 5000")
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
