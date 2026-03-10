@@ -28,7 +28,7 @@ bot.set_my_commands([
     BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
     BotCommand("give", "Kisi ko paise donate karein"),
     BotCommand("udhar", "Loan offer karein"),
-    BotCommand("chukao", "Udhar wapas karein"),
+    BotCommand("return", "Udhar wapas karein"),
     BotCommand("rob", "Dusre ke paise churayein"),
     BotCommand("kill", "Shikaar karein (500 Rs inam)"),
     BotCommand("revive", "Zinda karein (700 Rs lagenge)"),
@@ -174,24 +174,42 @@ def play_dart(message):
             u['bal'] -= amt
             bot.reply_to(message, f"❌ Nishana chooka! Aap {amt} Rs haar gaye.")
     except: bot.reply_to(message, "Format: /dart 100")
-
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
-    if not message.reply_to_message: return bot.reply_to(message, "Reply karke rob likho.")
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
+    try:
+        loot_amt = int(message.text.split()[1])
+    except:
+        return bot.reply_to(message, "Sahi format: /rob 1000")
+        
     r = get_user(message.from_user)
     t_obj = message.reply_to_message.from_user
     t = get_user(t_obj)
-    if message.from_user.id == t_obj.id: return bot.reply_to(message, "Khud ko lootega?")
-    if r['status'] == "Dead" or t['status'] == "Dead": return bot.reply_to(message, "Murdo ke beech game nahi hota.")
-    if t_obj.id == ADMIN_ID or time.time() < t['shield_until']: return bot.reply_to(message, "Target protected hai!")
-    if t['bal'] < 200: return bot.reply_to(message, "Banda garib hai, chhod de.")
     
-    loot = int(t['bal'] * random.uniform(0.1, 0.25))
-    tax = int(loot * 0.05)
-    t['bal'] -= loot
-    r['bal'] += (loot - tax)
-    bot.reply_to(message, f"🥷 ROB SUCCESS! {loot} Rs loote. 5% Tax ({tax} Rs) cut hua.")
-
+    if message.from_user.id == t_obj.id: return bot.reply_to(message, "Khud ki jeb katega kya?")
+    if r['status'] == "Dead" or t['status'] == "Dead": return bot.reply_to(message, "Murdo ke beech game nahi hota.")
+    
+    # 🛡️ Admin Unlimited Shield Check
+    if t_obj.id == ADMIN_ID: 
+        return bot.reply_to(message, "👑 **Aukaat mein reh!** Admin ke paas Unlimited Shield hai, use koi nahi loot sakta!")
+        
+    # Normal User Shield Check
+    if time.time() < t['shield_until']: 
+        return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)!")
+    
+    # Paise check karna
+    if t['bal'] < loot_amt: 
+        return bot.reply_to(message, f"Arey iske paas itne paise hi nahi hain! Iske paas sirf {t['bal']} Rs bache hain.")
+    
+    # 50% chance, BINa POLICE FINE KE
+    if random.choice([True, False]): 
+        tax = int(loot_amt * 0.05) # 5% tax
+        t['bal'] -= loot_amt
+        r['bal'] += (loot_amt - tax)
+        bot.reply_to(message, f"🥷 **ROB SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {loot_amt - tax} Rs! 💰")
+    else:
+        # Koi fine nahi katega
+        bot.reply_to(message, f"❌ **ROB FAILED!**\nChori nakam rahi! Target bach nikla. (Aap par koi fine nahi laga).")
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
@@ -237,7 +255,7 @@ def loan_cmd(message):
         bot.reply_to(message.reply_to_message, f"Kya aap {amt} Rs ka loan lena chahte hain?", reply_markup=markup)
     except: bot.reply_to(message, "Format: /udhar 500")
 
-@bot.message_handler(commands=['chukao'])
+@bot.message_handler(commands=['return'])
 def repay_cmd(message):
     u = get_user(message.from_user)
     if not u['loan']['active']: return bot.reply_to(message, "Koi udhar nahi hai.")
