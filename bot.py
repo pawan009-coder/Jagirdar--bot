@@ -167,17 +167,33 @@ def give_money(message):
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
     u = get_user(message.from_user)
-    if u['status'] == "Dead": return bot.reply_to(message, "Murde nahi khelte!")
+    if u['status'] == "Dead": 
+        return bot.reply_to(message, "☠️ Murde nahi khelte sa!")
+    
     try:
         amt = int(message.text.split()[1])
-        if u['bal'] < amt: return bot.reply_to(message, "Itne paise nahi hain!")
-        if random.random() <= 0.60:
-            u['bal'] += amt
-            bot.reply_to(message, f"🎯 Bullseye! Aap {amt} Rs jeet gaye. Double paisa!")
-        else:
-            u['bal'] -= amt
-            bot.reply_to(message, f"❌ Nishana chooka! Aap {amt} Rs haar gaye.")
-    except: bot.reply_to(message, "Format: /dart 100")
+    except:
+        return bot.reply_to(message, "❌ Sahi format: /dart 100")
+        
+    if u['bal'] < amt: 
+        return bot.reply_to(message, "❌ Itne paise nahi hain aapke paas!")
+        
+    # 1. Asli dart animation fenkna
+    dart_msg = bot.send_dice(message.chat.id, emoji='🎯')
+    
+    # 2. Animation poori hone ka wait karna (3 seconds)
+    time.sleep(3)
+    
+    # 3. Telegram dart mein 1 se 6 tak score aata hai (6 matlab bilkul center)
+    # Agar 4, 5 ya 6 aaya toh jeet (60% chance)
+    value = dart_msg.dice.value
+    
+    if value >= 4:
+        u['bal'] += amt # Paise jud gaye (Bet ka paisa double ho gaya)
+        bot.reply_to(dart_msg, f"🎯 **BULLSEYE!**\nTeer ekdum nishane par laga sa! (Score: {value}/6)\nAapka paisa DOUBLE ho gaya. Aap **{amt} Rs** jeet gaye! 💰")
+    else:
+        u['bal'] -= amt # Paise cut gaye
+        bot.reply_to(dart_msg, f"❌ **CHOOOK GAYE!**\nTeer bahar nikal gaya sa! (Score: {value}/6)\nAap **{amt} Rs** haar gaye. 💸")
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
