@@ -81,7 +81,7 @@ def get_ai_response(user_text):
             "Content-Type": "application/json"
         }
         payload = {
-            "model": "llama3-8b-8192", # Ye meta ka sabse fast aur smart model hai
+            "model": "llama-3.1-8b-instant", # Ye meta ka sabse fast aur smart model hai
             "messages": [
                 {"role": "system", "content": "Tu Jodhpur King bot hai. Desi Jodhpuri style mein mazedar aur chota jawab de."},
                 {"role": "user", "content": user_text}
