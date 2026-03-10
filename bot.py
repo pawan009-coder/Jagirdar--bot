@@ -1,4 +1,5 @@
 import telebot
+from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import time
 import random
 import requests
@@ -6,377 +7,390 @@ import os
 from flask import Flask
 import threading
 
-# ==========================================
-# 1. RENDER KEEP-ALIVE (SERVER SETUP)
-# ==========================================
 app = Flask('')
 @app.route('/')
-def home(): return "Jodhpur King Bot is 100% Online!"
+def home(): return "Jodhpur King Bot Online!"
+def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+def keep_alive(): threading.Thread(target=run).start()
 
-def run():
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    t = threading.Thread(target=run)
-    t.start()
-
-# ==========================================
-# 2. BOT & KEYS CONFIGURATION
-# ==========================================
 API_TOKEN = '8625875353:AAECoBaDSeZyLkX21ZNhhCdilnVWhYMLpAY'
 GEMINI_API_KEY = 'AIzaSyBM2xs5jGDQHn8MfJDb3II3ijxOfLTaXeg'
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
 bot = telebot.TeleBot(API_TOKEN)
 
-# ==========================================
-# 3. ADVANCED DATABASE & ARRAYS
-# ==========================================
-users = {}
-active_groups = set() # Shaming ke liye groups track karega
+bot.set_my_commands([
+    BotCommand("start", "Bot chalu karein"),
+    BotCommand("bal", "Apna khaata aur level dekhein"),
+    BotCommand("daily", "Har 24 ghante ka inam"),
+    BotCommand("weekly", "Har 7 din mein 2000 Rs"),
+    BotCommand("dart", "Kismat azmayein (/dart amount)"),
+    BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
+    BotCommand("give", "Kisi ko paise donate karein"),
+    BotCommand("udhar", "Loan offer karein"),
+    BotCommand("chukao", "Udhar wapas karein"),
+    BotCommand("rob", "Dusre ke paise churayein"),
+    BotCommand("kill", "Shikaar karein (500 Rs inam)"),
+    BotCommand("revive", "Zinda karein (700 Rs lagenge)"),
+    BotCommand("xo", "Tic-Tac-Toe khelein (/xo amount)"),
+    BotCommand("ban", "👑 Group se nikalein"),
+    BotCommand("mute", "👑 Chup karayein"),
+    BotCommand("askpoll", "👑 Daily poll bhejein")
+])
 
-BAD_WORDS = [
-    "bc", "mc", "bsdk", "madrachod", "behenchod", "gandu", 
-    "chutiya", "lodu", "kamine", "harami", "randi", "saala", "bkl", "mkb", "suar"
-]
+users = {}
+active_groups = set()
+pending_loans = {}
+xo_games = {}
+poll_voters = set()
+
+def get_level(bal):
+    if bal < 500: return "Noob 🪵"
+    elif bal < 1500: return "Bronze 🥉"
+    elif bal < 3000: return "Silver 🥈"
+    elif bal < 4000: return "Gold 🥇"
+    elif bal < 10000: return "Platinum 💎"
+    elif bal < 50000: return "Diamond 💠"
+    elif bal < 2000000: return "Heroic 🦸‍♂️"
+    else: return "GOD LEVEL 👑"
 
 def get_user(user_obj):
     uid = user_obj.id
     if uid not in users:
         users[uid] = {
-            "name": user_obj.first_name,
-            "bal": 1000, 
-            "status": "Alive", 
-            "last_daily": 0, 
-            "warns": 0, 
-            "shield_until": 0,
-            "shield_alerted": False,
+            "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
+            "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
             "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0}
         }
     else:
-        users[uid]["name"] = user_obj.first_name # Update name
+        users[uid]["name"] = user_obj.first_name
     return users[uid]
-
-def get_rank(uid):
-    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
-    for rank, (user_id, data) in enumerate(sorted_users, 1):
-        if user_id == uid:
-            return rank
-    return "N/A"
 
 def check_membership(uid):
     try:
         status = bot.get_chat_member(GROUP_USERNAME, uid).status
         return status in ['member', 'administrator', 'creator']
-    except: 
-        return False
+    except: return False
 
-# ==========================================
-# 4. GEMINI AI (FIXED 404 ERROR & SAFETY BLOCKS OFF)
-# ==========================================
 def get_ai_response(user_text):
     try:
-        # '-latest' lagaya taaki 404 error na aaye
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [{"parts": [{"text": f"Tu Jodhpur King bot hai. Desi Jodhpuri style mein chota jawab de: {user_text}"}]}],
-            "safetySettings": [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-            ]
-        }
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        payload = {"contents": [{"parts": [{"text": f"Tu Jodhpur King bot hai. Desi style mein chota jawab de: {user_text}"}]}], "safetySettings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}, {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}, {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"}, {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}]}
         res = requests.post(url, json=payload, timeout=10).json()
-        if 'candidates' in res:
-            return res['candidates'][0]['content']['parts'][0]['text']
-        else:
-            return f"⚠️ AI Error: {res.get('error', {}).get('message', 'Unknown AI Error')}"
-    except Exception as e:
-        return "🔌 Network issue sa! Abhi AI thak gaya hai."
+        if 'candidates' in res: return res['candidates'][0]['content']['parts'][0]['text']
+        else: return "⚠️ AI Error"
+    except: return "🔌 Network issue sa!"
 
-# ==========================================
-# 5. 24/7 BACKGROUND MONITOR (SHIELD ALERT & LOAN SHAMING)
-# ==========================================
 def background_monitor():
     while True:
         try:
-            current_time = time.time()
+            curr = time.time()
             for uid, data in list(users.items()):
-                
-                # A. SHIELD RENEWAL ALERT (1 Hour Before)
-                time_left = data['shield_until'] - current_time
-                if 0 < time_left <= 3600 and not data['shield_alerted']:
-                    try:
-                        bot.send_message(uid, f"🛡️ **SHIELD ALERT!**\nAapki protection sirf 1 ghante mein khatam hone wali hai! Turant group mein aakar `/shield` lagao warna log loot lenge!")
-                    except: pass 
-                    data['shield_alerted'] = True
-
-                # B. LOAN AUTO-CUT & SHAMING (After 24 Hours)
-                if data['loan']['active'] and current_time > data['loan']['due_time']:
+                if data['loan']['active'] and curr > data['loan']['due_time']:
                     lender_id = data['loan']['lender_id']
                     due_amount = data['loan']['amount']
-                    fine = 500
-                    total_cut = due_amount + fine
+                    cut = due_amount + 500
+                    data['bal'] -= cut
+                    if lender_id in users: users[lender_id]['bal'] += cut
+                    data['loan']['active'] = False 
+                    msg = f"🚨 **MAHA-GAREEB ALERT!** 🚨\n**{data['name']}** ne udhar nahi diya. Uske account se {cut} rs kaat kar wapas de diye gaye hain! 😂"
+                    for gid in list(active_groups):
+                        try: bot.send_message(gid, msg)
+                        except: active_groups.remove(gid)
+                
+                if data['status'] == "Dead" and curr - data['death_time'] > 172800:
+                    data['status'] = "Alive"
+                    data['bal'] += 300
+                    try: bot.send_message(uid, "Aap automatically zinda ho gaye aur 300 Rs mile hain!")
+                    except: pass
+        except: pass
+        time.sleep(60)
 
-                    data['bal'] -= total_cut
-                    if lender_id in users:
-                        users[lender_id]['bal'] += total_cut
-                    
-                    data['loan']['active'] = False # Loan is now cleared
-                    
-                    shame_msg = (f"🚨 **MAHA-GAREEB ALERT!** 🚨\n\n"
-                                 f"Ek mahan garib user jiska naam **{data['name']}** hai, isne paise udhar liye the aur wapas nahi diye.\n"
-                                 f"Ye itna zyada garib hai ki isey paise rakhne ka koi haq nahi hai! "
-                                 f"Niyam ke anusaar, iske account se 24 ghante baad apne aap {total_cut} rs (Capital + Interest + 500 Fine) kaat kar jisne paise diye the, use de diye gaye hain! 💸😂")
-                    
-                    for group_id in list(active_groups):
-                        try: bot.send_message(group_id, shame_msg)
-                        except: active_groups.remove(group_id)
-
-        except Exception as e: print("Monitor Error:", e)
-        time.sleep(60) # Har 1 min me check karega
-
-# ==========================================
-# 6. ALL USER COMMANDS (/bal, /info, /shield, /udhar, /rob)
-# ==========================================
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     get_user(message.from_user)
-    bot.reply_to(message, "👑 **Khamma Ghani!** Jodhpur King Bot mein swagat hai.\nBaat karne ke liye mujhe tag karein ya mere message par reply karein.")
+    if message.text == '/start shield':
+        buy_shield(message)
+        return
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("Join Group", url="https://t.me/Daimondbatch"))
+    bot.reply_to(message, "👑 Khamma Ghani! Jodhpur King Bot mein swagat hai.", reply_markup=markup)
 
-@bot.message_handler(commands=['bal', 'info'])
+@bot.message_handler(commands=['bal'])
 def check_bal(message):
-    target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
-    u = get_user(target_obj)
-    rank = get_rank(target_obj.id)
-    time_left = u['shield_until'] - time.time()
-    
-    if time_left > 0:
-        h = int(time_left // 3600)
-        m = int((time_left % 3600) // 60)
-        shield_status = f"Active 🛡️ ({h}h {m}m left)"
-    else:
-        shield_status = "Nahi Hai ❌"
-
-    loan_status = f"{u['loan']['amount']} Rs Baaki hain!" if u['loan']['active'] else "Koi Udhar nahi."
-
-    text = (f"🏦 **ACCOUNT INFO: {u['name']}**\n"
-            f"🌍 Global Rank: #{rank}\n"
-            f"💰 Balance: {u['bal']} Rs\n"
-            f"❤️ Status: {u['status']}\n"
-            f"🛡️ Protection: {shield_status}\n"
-            f"💳 Loan: {loan_status}\n"
-            f"⚠️ Warnings: {u['warns']}")
-    bot.reply_to(message, text)
-    @bot.message_handler(commands=['returnloan'])
-def repay_loan(message):
     u = get_user(message.from_user)
-    
-    # Check karega ki udhar hai ya nahi
-    if not u['loan']['active']:
-        return bot.reply_to(message, "❌ Aap par koi udhar nahi hai sa! Ekdum clear ho.")
-
-    due_amount = u['loan']['amount']
-    lender_id = u['loan']['lender_id']
-
-    # Check karega ki chukane ke liye paise hain ya nahi
-    if u['bal'] < due_amount:
-        return bot.reply_to(message, f"❌ Aapke paas poore paise nahi hain!\nUdhar chukane ke liye **{due_amount} Rs** chahiye, par aapki jeb mein sirf **{u['bal']} Rs** hain.")
-
-    # Paise kaat kar lender ko dena
-    u['bal'] -= due_amount
-    if lender_id in users:
-        users[lender_id]['bal'] += due_amount
-    
-    # Loan status clear karna
-    u['loan']['active'] = False
-    bot.reply_to(message, f"✅ **UDHAR CHUKTA!**\nAapne apna **{due_amount} Rs** ka udhar izzat ke saath wapas kar diya hai. Ab aap par koi karza nahi hai sa!")
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
 
 @bot.message_handler(commands=['shield'])
+def shield_req(message):
+    if message.chat.type != 'private':
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("DM Me Aao", url=f"https://t.me/{bot.get_me().username}?start=shield"))
+        return bot.reply_to(message, "Shield lagane ke liye akele me aao sa!", reply_markup=markup)
+    buy_shield(message)
+
 def buy_shield(message):
     u = get_user(message.from_user)
-    if u['bal'] < 500:
-        bot.reply_to(message, "❌ Shield lene ke liye 500 rs chahiye!")
-        return
-    
-    time_left = u['shield_until'] - time.time()
-    if time_left > 3600:
-        bot.reply_to(message, "⚠️ Aapki pehli shield abhi chal rahi hai! Jab 1 ghanta bachega tabhi nayi shield laga sakte ho.")
-        return
-
+    if u['bal'] < 500: return bot.send_message(message.chat.id, "❌ 500 rs chahiye!")
     u['bal'] -= 500
-    u['shield_until'] = time.time() + 86400  # 24 Hours
-    u['shield_alerted'] = False
-    bot.reply_to(message, "🛡️ **SHIELD ACTIVATED!**\n500 rs cut gaye. Agle 24 ghante tak koi chori nahi kar payega. (1 ghante pehle DM bhejunga!)")
+    u['shield_until'] = time.time() + 86400
+    bot.send_message(message.chat.id, "🛡️ SHIELD ACTIVATED! 24 ghante tak safe ho.")
 
-@bot.message_handler(commands=['udhar'])
-def give_loan(message):
-    if not message.reply_to_message:
-        bot.reply_to(message, "❌ Udhar dene ke liye receiver ke message par reply karke likho: `/udhar [amount]`")
-        return
-    
+@bot.message_handler(commands=['give', 'donate'])
+def give_money(message):
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
-        amount = int(message.text.split()[1])
-        lender = get_user(message.from_user)
-        borrower_obj = message.reply_to_message.from_user
-        borrower = get_user(borrower_obj)
-        
-        if message.from_user.id == borrower_obj.id: return
+        amt = int(message.text.split()[1])
+        s = get_user(message.from_user)
+        r = get_user(message.reply_to_message.from_user)
+        if s['bal'] < amt: return bot.reply_to(message, "Paise nahi hain!")
+        s['bal'] -= amt
+        r['bal'] += amt
+        bot.reply_to(message, f"✅ {amt} Rs donate kar diye!")
+    except: bot.reply_to(message, "Format: /give 100")
 
-        if lender['bal'] < amount:
-            bot.reply_to(message, "❌ Aapke khud ke paas itne paise nahi hain sa!")
-            return
-        if borrower['loan']['active']:
-            bot.reply_to(message, "❌ Is bande par pehle se udhar chada hai, aur mat do warna dub jayenge!")
-            return
-
-        # 10% Interest
-        interest = int(amount * 0.10)
-        total_due = amount + interest
-
-        lender['bal'] -= amount
-        borrower['bal'] += amount
-        borrower['loan'] = {
-            "active": True, "lender_id": message.from_user.id, 
-            "amount": total_due, "due_time": time.time() + 86400 # 24 Hours
-        }
-        
-        bot.reply_to(message, f"💸 **UDHAR PASS!**\n{lender['name']} ne {borrower['name']} ko {amount} Rs udhar diye.\n"
-                              f"Chukana hoga: {total_due} Rs (10% Interest).\n"
-                              f"⏳ Time: 24 Ghante! Warna public mein bezzati aur 500 fine lagega!")
-    except: bot.reply_to(message, "Format: `/udhar 500`")
+@bot.message_handler(commands=['dart'])
+def play_dart(message):
+    u = get_user(message.from_user)
+    if u['status'] == "Dead": return bot.reply_to(message, "Murde nahi khelte!")
+    try:
+        amt = int(message.text.split()[1])
+        if u['bal'] < amt: return bot.reply_to(message, "Itne paise nahi hain!")
+        if random.random() <= 0.60:
+            u['bal'] += amt
+            bot.reply_to(message, f"🎯 Bullseye! Aap {amt} Rs jeet gaye. Double paisa!")
+        else:
+            u['bal'] -= amt
+            bot.reply_to(message, f"❌ Nishana chooka! Aap {amt} Rs haar gaye.")
+    except: bot.reply_to(message, "Format: /dart 100")
 
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
-    if not message.reply_to_message:
-        bot.reply_to(message, "❌ Chori karne ke liye target ke message par reply karke /rob likho!")
-        return
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke rob likho.")
+    r = get_user(message.from_user)
+    t_obj = message.reply_to_message.from_user
+    t = get_user(t_obj)
+    if message.from_user.id == t_obj.id: return bot.reply_to(message, "Khud ko lootega?")
+    if r['status'] == "Dead" or t['status'] == "Dead": return bot.reply_to(message, "Murdo ke beech game nahi hota.")
+    if t_obj.id == ADMIN_ID or time.time() < t['shield_until']: return bot.reply_to(message, "Target protected hai!")
+    if t['bal'] < 200: return bot.reply_to(message, "Banda garib hai, chhod de.")
     
-    r_user = get_user(message.from_user)
-    t_user = get_user(message.reply_to_message.from_user)
-    t_name = t_user['name']
+    loot = int(t['bal'] * random.uniform(0.1, 0.25))
+    tax = int(loot * 0.05)
+    t['bal'] -= loot
+    r['bal'] += (loot - tax)
+    bot.reply_to(message, f"🥷 ROB SUCCESS! {loot} Rs loote. 5% Tax ({tax} Rs) cut hua.")
 
-    if message.from_user.id == message.reply_to_message.from_user.id:
-        bot.reply_to(message, "Arey shaane, khud ki jeb katega kya?")
-        return
-
-    if r_user['status'] == "Dead" or t_user['status'] == "Dead":
-        bot.reply_to(message, "☠️ Murdon ke beech chori nahi hoti sa!")
-        return
-
-    if time.time() < t_user['shield_until']:
-        r_user['bal'] -= 200
-        bot.reply_to(message, f"⚡ **CURRENT LAGA!**\n{t_name} ke paas 🛡️ Shield hai! Aapke 200 rs fine lag gaya.")
-        return
-
-    if t_user['bal'] < 200:
-        bot.reply_to(message, f"Arey chhod de garib ko! Ye {t_name} bahut garib hai, iske paas bas {t_user['bal']} rs bache hain. 😭")
-        return
-
-    if random.choice([True, False]): # 50% Chance
-        loot = int(t_user['bal'] * random.uniform(0.1, 0.25))
-        t_user['bal'] -= loot
-        bot.reply_to(message, f"🥷 **CHORI SUCCESS!**\nAapne {t_name} ki jeb kaat li aur {loot} rs loot liye! 💰")
-    else:
-        
-@bot.message_handler(commands=['daily', 'dart'])
-def play_games(message):
-    u = get_user(message.from_user)
-    cmd = message.text.split()[0].lower()
-    
-    if cmd == '/daily':
-        if time.time() - u['last_daily'] > 86400:
-            u['bal'] += 200; u['last_daily'] = time.time(); bot.reply_to(message, "🎁 200 rs mile!")
-        else: bot.reply_to(message, "❌ Aaj ka mil gaya sa, kal aana!")
-            
-    elif cmd == '/dart':
-        if u['status'] == "Dead":
-            bot.reply_to(message, "☠️ Mare huye log game nahi khel sakte!")
-            return
-        res = bot.send_dice(message.chat.id, emoji='🎯')
-        if res.dice.value >= 4:
-            u['bal'] += 100; bot.reply_to(message, "🎯 Bullseye! 100 rs jeete.")
-        else:
-            u['bal'] -= 50; bot.reply_to(message, "❌ Nishana chooka, 50 rs haare.")
-
-    # REMINDER SYSTEM
-    if u['loan']['active'] and u['bal'] >= u['loan']['amount']:
-        try: bot.send_message(message.from_user.id, f"🔔 **REMINDER!**\nAapke paas paise aa gaye hain! Apna {u['loan']['amount']} rs ka udhar jaldi chukao! loan chukane ke liye /return command dalo")
-        except: pass
-
-# ==========================================
-# 7. ADMIN COMMANDS (/kill, /gift)
-# ==========================================
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
-    if message.from_user.id != ADMIN_ID: return
-    if not message.reply_to_message:
-        bot.reply_to(message, "❌ Reply karke /kill likho!")
-        return
-    
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
+    r = get_user(message.from_user)
     t_obj = message.reply_to_message.from_user
-    u, admin = get_user(t_obj), get_user(ADMIN_ID)
+    t = get_user(t_obj)
+    if r['status'] == "Dead": return bot.reply_to(message, "Murda kisi ko nahi maar sakta.")
+    if t['status'] == "Dead": return bot.reply_to(message, "Pehle se mara hua hai.")
+    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "Admin ko nahi maar sakte!")
     
-    if u['status'] == "Dead": return
-    tax = int(u['bal'] * 0.05)
-    u['bal'] -= tax
-    u['status'] = "Dead"
-    admin['bal'] += 500 
-    bot.reply_to(message, f"☠️ **SHIKAAR DONE!**\nAdmin ko 500 rs mile. Target ka 5% ({tax} rs) tax kata!")
+    t['status'] = "Dead"
+    t['death_time'] = time.time()
+    r['bal'] += 500
+    bot.reply_to(message, "☠️ KILLED! Target dead, aapko 500 Rs mile.")
 
-@bot.message_handler(commands=['gift'])
-def gift_cmd(message):
-    if message.from_user.id != ADMIN_ID: return
-    if not message.reply_to_message: return
+@bot.message_handler(commands=['revive'])
+def revive_cmd(message):
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke revive likho.")
+    r = get_user(message.from_user)
+    t = get_user(message.reply_to_message.from_user)
+    if r['bal'] < 700: return bot.reply_to(message, "700 Rs chahiye!")
+    if t['status'] == "Alive": return bot.reply_to(message, "Wo zinda hai!")
+    
+    r['bal'] -= 700
+    t['status'] = "Alive"
+    bot.reply_to(message, "💉 Revived! 700 Rs kat gaye.")
+
+@bot.message_handler(commands=['udhar'])
+def loan_cmd(message):
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
-        amount = int(message.text.split()[1])
-        t_obj = message.reply_to_message.from_user
-        tax = int(amount * 0.15)
-        final = amount - tax
-        get_user(t_obj)['bal'] += final
-        bot.reply_to(message, f"🎁 **GIFT SENT!**\n📉 Tax (15%): {tax} rs\n✅ Received: {final} rs")
-    except: 
-        bot.reply_to(message, "❌ Sahi format: /gift 100")
+        amt = int(message.text.split()[1])
+        s = get_user(message.from_user)
+        r_obj = message.reply_to_message.from_user
+        r = get_user(r_obj)
+        if s['bal'] < amt: return bot.reply_to(message, "Paise nahi hain!")
+        if r['loan']['active']: return bot.reply_to(message, "Uspe pehle se karza hai.")
+        
+        req_id = str(message.message_id)
+        pending_loans[req_id] = {"lender": message.from_user.id, "borrower": r_obj.id, "amount": amt}
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("Yes", callback_data=f"ly_{req_id}"), InlineKeyboardButton("No", callback_data=f"ln_{req_id}"))
+        bot.reply_to(message.reply_to_message, f"Kya aap {amt} Rs ka loan lena chahte hain?", reply_markup=markup)
+    except: bot.reply_to(message, "Format: /udhar 500")
 
-# ==========================================
-# 8. MASTER HANDLER (POLICE + AI)
-# ==========================================
+@bot.message_handler(commands=['chukao'])
+def repay_cmd(message):
+    u = get_user(message.from_user)
+    if not u['loan']['active']: return bot.reply_to(message, "Koi udhar nahi hai.")
+    due = u['loan']['amount']
+    lid = u['loan']['lender_id']
+    if u['bal'] < due: return bot.reply_to(message, "Paise kam hain!")
+    u['bal'] -= due
+    if lid in users: users[lid]['bal'] += due
+    u['loan']['active'] = False
+    bot.reply_to(message, "✅ Udhar chukta hua!")
+
+@bot.message_handler(commands=['daily', 'weekly'])
+def claims(message):
+    u = get_user(message.from_user)
+    cmd = message.text.split()[0].lower()
+    t = time.time()
+    if cmd == '/daily':
+        if t - u['last_daily'] > 86400: u['bal'] += 200; u['last_daily'] = t; bot.reply_to(message, "🎁 200 rs mile!")
+        else: bot.reply_to(message, "Kal aana!")
+    elif cmd == '/weekly':
+        if t - u['last_weekly'] > 604800: u['bal'] += 2000; u['last_weekly'] = t; bot.reply_to(message, "🎁 2000 rs mile!")
+        else: bot.reply_to(message, "Agle hafte aana!")
+
+@bot.message_handler(commands=['xo'])
+def xo_start(message):
+    try:
+        amt = int(message.text.split()[1])
+        u = get_user(message.from_user)
+        if u['bal'] < amt: return bot.reply_to(message, "Paise kam hain!")
+        gid = str(message.message_id)
+        xo_games[gid] = {"p1": message.from_user.id, "p2": None, "amt": amt, "board": ["-"]*9, "turn": message.from_user.id}
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("Join Game", callback_data=f"xo_join_{gid}"))
+        bot.reply_to(message, f"XO Game {amt} Rs ka! P2 join kare:", reply_markup=markup)
+    except: bot.reply_to(message, "Format: /xo 100")
+
+def xo_markup(gid):
+    b = xo_games[gid]['board']
+    m = InlineKeyboardMarkup(row_width=3)
+    btns = [InlineKeyboardButton(b[i] if b[i] != "-" else " ", callback_data=f"xo_m_{gid}_{i}") for i in range(9)]
+    m.add(*btns)
+    return m
+
+def check_win(b):
+    for w in [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]:
+        if b[w[0]] != "-" and b[w[0]] == b[w[1]] == b[w[2]]: return b[w[0]]
+    if "-" not in b: return "Tie"
+    return None
+
+@bot.message_handler(commands=['askpoll'])
+def ask_poll(message):
+    if message.from_user.id != ADMIN_ID: return
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("Yes", callback_data="poll_y"), InlineKeyboardButton("No", callback_data="poll_n"))
+    bot.send_message(message.chat.id, "Kya Daimond batch bot accha hai?", reply_markup=markup)
+
+@bot.message_handler(commands=['ban', 'unban', 'mute', 'unmute', 'pin'])
+def rose_features(message):
+    if not check_membership(message.from_user.id): return
+    member = bot.get_chat_member(message.chat.id, message.from_user.id)
+    if member.status not in ['administrator', 'creator']: return
+    cmd = message.text.split()[0].lower()
+    if cmd == '/pin' and message.reply_to_message:
+        bot.pin_chat_message(message.chat.id, message.reply_to_message.message_id)
+        bot.reply_to(message, "Message pinned!")
+        return
+    if not message.reply_to_message: return bot.reply_to(message, "Reply karo!")
+    tid = message.reply_to_message.from_user.id
+    try:
+        if cmd == '/ban': bot.ban_chat_member(message.chat.id, tid); bot.reply_to(message, "Banned!")
+        elif cmd == '/unban': bot.unban_chat_member(message.chat.id, tid); bot.reply_to(message, "Unbanned!")
+        elif cmd == '/mute': bot.restrict_chat_member(message.chat.id, tid, can_send_messages=False); bot.reply_to(message, "Muted!")
+        elif cmd == '/unmute': bot.restrict_chat_member(message.chat.id, tid, can_send_messages=True, can_send_media_messages=True, can_send_other_messages=True); bot.reply_to(message, "Unmuted!")
+    except: bot.reply_to(message, "Admin power chahiye ya main admin nahi hu!")
+
+@bot.callback_query_handler(func=lambda call: True)
+def callbacks(call):
+    d = call.data
+    u = call.from_user
+    uid = u.id
+    
+    if d.startswith("ly_") or d.startswith("ln_"):
+        req_id = d.split("_")[1]
+        if req_id not in pending_loans: return bot.answer_callback_query(call.id, "Expired!")
+        req = pending_loans[req_id]
+        if uid != req['borrower']: return bot.answer_callback_query(call.id, "Ye tumhare liye nahi hai!")
+        if d.startswith("ln_"):
+            del pending_loans[req_id]
+            bot.edit_message_text("Loan rejected.", call.message.chat.id, call.message.message_id)
+        else:
+            s = users[req['lender']]; r = users[req['borrower']]
+            amt = req['amount']; due = amt + int(amt * 0.1)
+            s['bal'] -= amt; r['bal'] += amt
+            r['loan'] = {"active": True, "lender_id": req['lender'], "amount": due, "due_time": time.time() + 86400}
+            del pending_loans[req_id]
+            bot.edit_message_text("Loan Accepted!", call.message.chat.id, call.message.message_id)
+
+    elif d.startswith("poll_"):
+        if uid in poll_voters: return bot.answer_callback_query(call.id, "Pehle vote de chuke ho!")
+        poll_voters.add(uid)
+        usr = get_user(u)
+        if d == "poll_y": usr['bal'] += 100; bot.answer_callback_query(call.id, "+100 Rs mile!")
+        else: usr['bal'] -= 100; bot.answer_callback_query(call.id, "-100 Rs cut!")
+
+    elif d.startswith("xo_join_"):
+        gid = d.split("_")[2]
+        if gid not in xo_games: return bot.answer_callback_query(call.id, "Game khatam!")
+        g = xo_games[gid]
+        if uid == g['p1']: return bot.answer_callback_query(call.id, "Khud ke sath khelega?")
+        u_data = get_user(u)
+        if u_data['bal'] < g['amt']: return bot.answer_callback_query(call.id, "Paise kam hain!")
+        g['p2'] = uid
+        users[g['p1']]['bal'] -= g['amt']
+        u_data['bal'] -= g['amt']
+        bot.edit_message_text(f"Game Started! Turn: P1", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
+
+    elif d.startswith("xo_m_"):
+        _, _, gid, pos = d.split("_")
+        pos = int(pos)
+        if gid not in xo_games: return bot.answer_callback_query(call.id, "Over!")
+        g = xo_games[gid]
+        if g['p2'] is None: return bot.answer_callback_query(call.id, "P2 ka wait karo!")
+        if uid != g['turn']: return bot.answer_callback_query(call.id, "Tumhari baari nahi!")
+        if g['board'][pos] != "-": return bot.answer_callback_query(call.id, "Galat jagah!")
+        
+        sym = "X" if uid == g['p1'] else "O"
+        g['board'][pos] = sym
+        res = check_win(g['board'])
+        
+        if res == "X":
+            users[g['p1']]['bal'] += g['amt'] * 2
+            bot.edit_message_text("P1 (X) Jeet gaya!", call.message.chat.id, call.message.message_id)
+            del xo_games[gid]
+        elif res == "O":
+            users[g['p2']]['bal'] += g['amt'] * 2
+            bot.edit_message_text("P2 (O) Jeet gaya!", call.message.chat.id, call.message.message_id)
+            del xo_games[gid]
+        elif res == "Tie":
+            users[g['p1']]['bal'] += g['amt']; users[g['p2']]['bal'] += g['amt']
+            bot.edit_message_text("Tie! Paise wapas.", call.message.chat.id, call.message.message_id)
+            del xo_games[gid]
+        else:
+            g['turn'] = g['p2'] if uid == g['p1'] else g['p1']
+            nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
+            bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
+
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
-    if message.chat.type in ['group', 'supergroup']:
-        active_groups.add(message.chat.id)
-        
+    is_prv = message.chat.type == 'private'
+    if not is_prv: active_groups.add(message.chat.id)
     uid = message.from_user.id
-    text = message.text.lower()
-    u = get_user(message.from_user)
+    txt = message.text.lower()
+    bot_uname = f"@{bot.get_me().username.lower()}"
     
-    # POLICE ABUSE DETECTOR
-    if any(word in text for word in BAD_WORDS):
-        u['bal'] -= 500
-        u['warns'] += 1
-        bot.reply_to(message, f"🚨 **POLICE ALERT!**\nGaali dene par 500 rs fine laga!\n⚠️ Total Warnings: {u['warns']}")
-        return
+    is_men = bot_uname in txt
+    is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
-    # AI RESPONSE
-    bot_info = bot.get_me()
-    bot_uname = f"@{bot_info.username.lower()}"
-    
-    if bot_uname in text or (message.reply_to_message and message.reply_to_message.from_user.id == bot_info.id):
-        if not check_membership(uid):
-            bot.reply_to(message, "🙏 Pehle group join karo sa!")
-            return
-            
+    if is_prv or is_men or is_rep:
+        if not is_prv and not check_membership(uid): return bot.reply_to(message, "Pehle group join karo sa!")
         bot.send_chat_action(message.chat.id, 'typing')
-        clean_text = text.replace(bot_uname, "").strip()
-        if clean_text: bot.reply_to(message, get_ai_response(clean_text))
+        clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
+        if clean: bot.reply_to(message, get_ai_response(clean))
 
-# ==========================================
-# 9. EXECUTION
-# ==========================================
 if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
-    print("Maha-Bot chalu ho gaya sa!")
     bot.infinity_polling()
