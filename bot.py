@@ -14,8 +14,8 @@ def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 def keep_alive(): threading.Thread(target=run).start()
 
 API_TOKEN = '8625875353:AAECoBaDSeZyLkX21ZNhhCdilnVWhYMLpAY'
-# Purani Gemini key hata kar ye daalo:
-GROQ_API_KEY = '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'
+# Groq hata kar wapas Gemini ki chaabi lagao
+GEMINI_API_KEY = 'AIzaSyBM2xs5jGDQHn8MfJDb3II3ijxOfLTaXeg' # Yahan apni chalu Gemini key dalna
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
 bot = telebot.TeleBot(API_TOKEN)
@@ -84,26 +84,30 @@ def check_membership(uid):
 
 def get_ai_response(user_text):
     try:
-        url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
-            "Content-Type": "application/json"
-        }
+        # Dekho sa, yahan URL mein ab gemini-2.5-flash lag gaya hai!
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        
         payload = {
-            "model": "llama-3.1-8b-instant", # Ye meta ka sabse fast aur smart model hai
-            "messages": [
-                {"role": "system", "content": "Tu Jodhpur King bot hai. Desi Jodhpuri style mein mazedar aur chota jawab de."},
-                {"role": "user", "content": user_text}
+            "contents": [{"parts": [{"text": f"Tu Jodhpur King bot hai. Desi Jodhpuri style mein mazedar aur chota jawab de: {user_text}"}]}], 
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}, 
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}, 
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"}, 
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
             ]
         }
-        res = requests.post(url, headers=headers, json=payload, timeout=10).json()
         
-        if 'choices' in res:
-            return res['choices'][0]['message']['content']
-        else:
-            return f"⚠️ AI Error: {res.get('error', {}).get('message', 'Unknown Error')}"
-    except Exception as e:
-        return "🔌 Network issue sa! Groq thoda busy hai."
+        res = requests.post(url, json=payload, timeout=10)
+        res_json = res.json()
+        
+        if 'candidates' in res_json: 
+            return res_json['candidates'][0]['content']['parts'][0]['text']
+        else: 
+            # Error aane par ab seedha Telegram par asli bimari dikhegi
+            return f"⚠️ API BIMARI: {res_json.get('error', {}).get('message', 'Unknown Error')}"
+            
+    except Exception as e: 
+        return "🔌 Network issue sa! API ka taar hil gaya hai."
 
 def background_monitor():
     while True:
