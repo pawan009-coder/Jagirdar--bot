@@ -105,7 +105,7 @@ def background_monitor():
                     except: pass
         except: pass
         time.sleep(60)
-
+        
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     get_user(message.from_user)
@@ -115,7 +115,7 @@ def start_cmd(message):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Join Group", url="https://t.me/Daimondbatch"))
     bot.reply_to(message, "👑 Khamma Ghani! Jodhpur King Bot mein swagat hai.", reply_markup=markup)
-    @bot.message_handler(commands=['gift'])
+@bot.message_handler(commands=['gift'])
 def gift_cmd(message):
     if message.from_user.id != ADMIN_ID: return
     if not message.reply_to_message: return bot.reply_to(message, "❌ Reply karke amount likho: /gift 5000")
