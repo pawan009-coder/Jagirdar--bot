@@ -126,12 +126,12 @@ def gift_cmd(message):
         bot.reply_to(message, f"🎁 **GIFT SENT!**\nAdmin ne {t_obj.first_name} ko {amt} Rs free mein diye hain! 🎉")
     except: 
         bot.reply_to(message, "❌ Sahi Format: /gift 5000")
-
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
-    u = get_user(message.from_user)
+    # Check karega ki reply kiya hai ya direct bal likha hai
+    target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
+    u = get_user(target_obj)
     bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
-
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
     # Agar Admin shield command lagata hai
