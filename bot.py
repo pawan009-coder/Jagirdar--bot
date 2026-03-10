@@ -55,6 +55,14 @@ def get_level(bal):
     elif bal < 2000000: return "Heroic 🦸‍♂️"
     else: return "GOD LEVEL 👑"
 
+def get_rank(uid):
+    # Ye saare bot users ko unke paise (bal) ke hisaab se descending order mein sort karega
+    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
+    for rank, (user_id, data) in enumerate(sorted_users, 1):
+        if user_id == uid: 
+            return rank
+    return "N/A"
+
 def get_user(user_obj):
     uid = user_obj.id
     if uid not in users:
@@ -141,12 +149,18 @@ def gift_cmd(message):
         bot.reply_to(message, f"🎁 **GIFT SENT!**\nAdmin ne {t_obj.first_name} ko {amt} Rs free mein diye hain! 🎉")
     except: 
         bot.reply_to(message, "❌ Sahi Format: /gift 5000")
+
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
-    # Check karega ki reply kiya hai ya direct bal likha hai
     target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
     u = get_user(target_obj)
-    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
+    
+    # Global rank aur total users nikalna
+    rank = get_rank(target_obj.id)
+    total_users = len(users)
+    
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
+    
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
     # Agar Admin shield command lagata hai
