@@ -159,7 +159,9 @@ def background_monitor():
                     data['bal'] += 300
                     try: bot.send_message(uid, "Aap automatically zinda ho gaye aur 300 Rs mile hain!")
                     except: pass
-                   save_data()    
+            
+            # Har 60 second mein database mein save karega (Spaces ekdum sahi hain)
+            save_data()
         except: pass
         time.sleep(60)
         
