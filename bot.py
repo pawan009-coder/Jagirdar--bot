@@ -519,6 +519,41 @@ def callbacks(call):
         if d == "poll_y": usr['bal'] += 100; bot.answer_callback_query(call.id, "+100 Rs mile!")
         else: usr['bal'] -= 100; bot.answer_callback_query(call.id, "-100 Rs cut!")
 
+    elif d.startswith("say_"):
+        if uid != ADMIN_ID: return bot.answer_callback_query(call.id, "Tu Admin thodi hai!")
+        if uid not in pending_says: return bot.answer_callback_query(call.id, "Message purana ho gaya, wapas /say karo.")
+        
+        target = d.replace("say_", "")
+        data = pending_says[uid]
+        
+        def send_to_chat(chat_id):
+            # Agar photo/video par reply tha, toh exact waise hi copy karega bina "Forwarded" tag ke
+            if data['type'] == 'copy':
+                bot.copy_message(chat_id, call.message.chat.id, data['content'])
+            # Agar direct text likha tha
+            else:
+                bot.send_message(chat_id, data['content'])
+
+        try:
+            if target == "all":
+                count = 0
+                for gid in list(active_groups):
+                    try:
+                        send_to_chat(gid)
+                        count += 1
+                    except: pass
+                bot.edit_message_text(f"✅ Boss! Message ek sath {count} groups mein blast kar diya gaya!", call.message.chat.id, call.message.message_id)
+            else:
+                gid = int(target)
+                send_to_chat(gid)
+                chat_info = bot.get_chat(gid)
+                bot.edit_message_text(f"✅ Message '{chat_info.title}' mein bhej diya sa!", call.message.chat.id, call.message.message_id)
+        except Exception as e:
+            bot.answer_callback_query(call.id, "Bhejne mein error aayi!")
+            
+        # Message bhejne ke baad data delete kar do
+        del pending_says[uid]
+        
     elif d.startswith("xo_join_"):
         gid = d.split("_")[2]
         if gid not in xo_games: return bot.answer_callback_query(call.id, "Game khatam!")
