@@ -124,37 +124,47 @@ def check_membership(uid):
 
 def get_ai_response(user_text):
     try:
-        # 🚀 API ko fast karne ke liye direct POST request aur 'llama' model
-        url = "https://text.pollinations.ai/"
+        # Render ki tijori se Groq ki chaabi nikalna
+        GROQ_API_KEY = os.environ.get('GROQ_KEY')
         
+        if not GROQ_API_KEY:
+            return "Bhai meri Groq ki chaabi gum ho gayi hai, Render par check kar!"
+
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        # Insaan banne ki training aur user ka text
         payload = {
+            "model": "llama3-8b-8192", # Ye model hawa se baatein karta hai (super fast)
             "messages": [
                 {
                     "role": "system", 
-                    "content": "Tu ek asli insaan hai, Jo ki kafi samajdaar hai. Tera naam dsimond batch hai. Kabhi mat bolna ki tu AI, machine ya bot hai. Hamesha sirf 1 ya 2 line mein chota aur desi (Hinglish) jawab dena."
+                    "content": "Tu ek asli insaan hai, Jodhpur ka desi chhora. Tera naam Jodhpur King hai. Kabhi mat bolna ki tu AI, bot, ya assistant hai. Koi puche toh gussa hoke bolna 'Main insaan hu bhai!'. Hamesha sirf 1 ya 2 line mein chota aur desi (Hinglish) jawab dena. Lamba bhashan bilkul nahi."
                 },
                 {
                     "role": "user", 
                     "content": user_text
                 }
             ],
-            "model": "llama" # Llama model sabse fast reply karta hai
+            "max_tokens": 150 # Chote jawab ke liye token limit set ki hai
         }
         
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        
-        # 10 second se zyada wait nahi karega
+        # Request bhejna (Groq 1-2 second mein hi jawab de deta hai)
         res = requests.post(url, json=payload, headers=headers, timeout=10)
+        res_json = res.json()
         
         if res.status_code == 200:
-            return res.text.strip()
+            return res_json["choices"][0]["message"]["content"].strip()
         else:
-            return "Bhai abhi thoda kaam mein fasa hu, baad mein batata hu."
+            return f"Error aagya sa: {res_json.get('error', {}).get('message', 'Unknown')}"
             
     except Exception as e: 
-        return "Yaar yahan network thoda slow chal raha hai abhi."
+        return "Bhai thoda network ka lafda hai, wapas bol."
+
 def background_monitor():
     while True:
         try:
