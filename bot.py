@@ -6,6 +6,7 @@ import requests
 import os
 from flask import Flask
 import threading
+import urllib.parse
 
 app = Flask('')
 @app.route('/')
@@ -26,6 +27,7 @@ bot.set_my_commands([
     BotCommand("toprank", "top 10 rich player of game"),
     BotCommand("daily", "Har 24 ghante ka inam"),
     BotCommand("weekly", "Har 7 din mein 2000 Rs"),
+    Botcommand("imagine", "apni pasand ka photo mangaye"),
     BotCommand("dart", "Kismat azmayein (/dart amount)"),
     BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
     BotCommand("give", "Kisi ko paise donate karein"),
@@ -185,6 +187,34 @@ def buy_shield(message):
     u['shield_until'] = time.time() + 86400 # 24 Hours
     bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
 
+@bot.message_handler(commands=['imagine', 'photo'])
+def generate_image(message):
+    # Agar user ne sirf command likhi aur aage kuch nahi likha
+    if len(message.text.split()) == 1:
+        return bot.reply_to(message, "🎨 Photo banane ke liye aise likho:\n`/imagine [kuch bhi likho]`\n\n💡 Jaise: `/imagine a flying neon car in Jodhpur`", parse_mode="Markdown")
+    
+    # Group mein bot ke naam ke aage 'sending photo...' likha aayega
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    # User ne jo prompt likha hai, use nikalna
+    prompt = message.text.replace("/imagine", "").replace("/photo", "").strip()
+    
+    # Text ko URL mein fit hone ke kabil banana (spaces ko %20 banana)
+    safe_prompt = urllib.parse.quote(prompt)
+    
+    # Ye hai wo free jaadui link jo bina API key ke photo banata hai
+    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true"
+    
+    try:
+        # Direct internet se photo utha kar Telegram par bhejna
+        bot.send_photo(
+            message.chat.id, 
+            image_url, 
+            caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}"
+        )
+    except Exception as e:
+        bot.reply_to(message, "❌ Photo banne mein thodi dikkat aayi sa! Server thoda busy ho sakta hai, thodi der baad try karein.")
+        
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
