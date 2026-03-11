@@ -127,7 +127,7 @@ def get_ai_response(user_text):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         payload = {
-            "contents": [{"parts": [{"text": f"Tu Jodhpur King bot hai. Desi Jodhpuri style mein mazedar aur chota jawab de: {user_text}"}]}], 
+            "contents": [{"parts": [{"text": f"Tu daimond batch ka bot hai jo ki team nexttoppers ke daimond batch ke baccho ka dost hai ishleye waise hi jawab de: {user_text}"}]}], 
             "safetySettings": [
                 {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}, 
                 {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}, 
