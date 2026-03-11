@@ -7,11 +7,25 @@ import os
 from flask import Flask
 import threading
 import urllib.parse
-import pymongo # Ye add karna zaroori hai
+import pymongo 
 
-# Database Link (apna_asli_password ki jagah apna real password daal lena bina kisi < > ke)
-MONGO_URL = 'mongodb+srv://Pawan9848:pawansa009@jagirdar.gy1odgi.mongodb.net/?appName=Jagirdar'
+# Flask Server Setup (Render ke liye zaroori)
+app = Flask('')
+@app.route('/')
+def home(): return "Jodhpur King Bot Online & Secure!"
+def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+def keep_alive(): threading.Thread(target=run).start()
 
+# 🔐 SECURE KEYS (Ab sab Render ki tijori / Environment Variables se aayega)
+API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
+GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
+MONGO_URL = os.environ.get('MONGO_URL')
+
+# Admin & Group Info
+ADMIN_ID = 7574760011 
+GROUP_USERNAME = "@Daimondbatch" 
+
+# Database Connection
 try:
     client = pymongo.MongoClient(MONGO_URL)
     db = client["jodhpur_king_db"]
@@ -20,15 +34,12 @@ try:
 except Exception as e:
     print(f"❌ Database Error: {e}")
 
-app = Flask('')
-@app.route('/')
-def home(): return "Jodhpur King Bot Online!"
-def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-def keep_alive(): threading.Thread(target=run).start()
+# Bot Initialization
+bot = telebot.TeleBot(API_TOKEN)
 
 API_TOKEN = '8625875353:AAECoBaDSeZyLkX21ZNhhCdilnVWhYMLpAY'
 # Groq hata kar wapas Gemini ki chaabi lagao
-GEMINI_API_KEY = 'AIzaSyBM2xs5jGDQHn8MfJDb3II3ijxOfLTaXeg' # Yahan apni chalu Gemini key dalna
+GEMINI_API_KEY = 'AIzaSyBA3I4mcdPn9H38ABIWHYgyVhl12UY7uTc' # Yahan apni chalu Gemini key dalna
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
 bot = telebot.TeleBot(API_TOKEN)
