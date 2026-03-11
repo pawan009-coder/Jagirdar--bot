@@ -12,7 +12,7 @@ import pymongo
 # Flask Server Setup (Render ke liye zaroori)
 app = Flask('')
 @app.route('/')
-def home(): return "Jodhpur King Bot Online & Secure!"
+def home(): return "your friend daimond batch bot is here!"
 def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 def keep_alive(): threading.Thread(target=run).start()
 
