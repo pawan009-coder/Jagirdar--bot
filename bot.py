@@ -7,6 +7,18 @@ import os
 from flask import Flask
 import threading
 import urllib.parse
+import pymongo # Ye add karna zaroori hai
+
+# Database Link (apna_asli_password ki jagah apna real password daal lena bina kisi < > ke)
+MONGO_URL = 'mongodb+srv://Pawan9848:pawansa009@jagirdar.gy1odgi.mongodb.net/?appName=Jagirdar'
+
+try:
+    client = pymongo.MongoClient(MONGO_URL)
+    db = client["jodhpur_king_db"]
+    users_db = db["users"]
+    print("✅ Database Connected Successfully!")
+except Exception as e:
+    print(f"❌ Database Error: {e}")
 
 app = Flask('')
 @app.route('/')
@@ -47,6 +59,20 @@ active_groups = set()
 pending_loans = {}
 xo_games = {}
 poll_voters = set()
+
+# Database se purana data nikalna
+print("Loading data from database...")
+try:
+    for doc in users_db.find():
+        users[doc["_id"]] = doc["data"]
+    print(f"Loaded {len(users)} users.")
+except:
+    print("Abhi naya database hai ya error aaya.")
+
+# Data permanent save karne ka function
+def save_data():
+    for uid, data in list(users.items()):
+        users_db.update_one({"_id": uid}, {"$set": {"data": data}}, upsert=True)
 
 def get_level(bal):
     if bal < 500: return "Noob 🪵"
@@ -133,6 +159,7 @@ def background_monitor():
                     data['bal'] += 300
                     try: bot.send_message(uid, "Aap automatically zinda ho gaye aur 300 Rs mile hain!")
                     except: pass
+                   save_data()    
         except: pass
         time.sleep(60)
         
