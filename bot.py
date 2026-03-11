@@ -303,6 +303,11 @@ def give_money(message):
         bot.reply_to(message, f"✅ {amt} Rs donate kar diye!")
     except: bot.reply_to(message, "Format: /give 100")
 
+@bot.message_handler(commands=['dance'])
+def dance_cmd(message):
+    dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif"
+    bot.send_animation(message.chat.id, dance_gif, caption="🕺 **Balle Balle! Party Time!** 💃")
+    
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
     u = get_user(message.from_user)
