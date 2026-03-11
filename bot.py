@@ -27,7 +27,7 @@ bot.set_my_commands([
     BotCommand("toprank", "top 10 rich player of game"),
     BotCommand("daily", "Har 24 ghante ka inam"),
     BotCommand("weekly", "Har 7 din mein 2000 Rs"),
-    Botcommand("imagine", "apni pasand ka photo mangaye"),
+    BotCommand("imagine", "apni pasand ka photo mangaye"),
     BotCommand("dart", "Kismat azmayein (/dart amount)"),
     BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
     BotCommand("give", "Kisi ko paise donate karein"),
@@ -167,6 +167,36 @@ def check_bal(message):
     total_users = len(users)
     
     bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
+
+@bot.message_handler(commands=['toprank', 'top'])
+def top_richest(message):
+    if not users:
+        return bot.reply_to(message, "Abhi tak koi user nahi hai sa!")
+        
+    # Saare users ko paise ke hisaab se sort karna
+    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
+    
+    # Sirf Top 10 nikalna
+    top_10 = sorted_users[:10]
+    
+    text = "🏆 **GLOBAL TOP 10 AMEER LOG** 🏆\n\n"
+    
+    # Ek-ek karke list banana
+    for i, (uid, data) in enumerate(top_10):
+        # Topper ko Crown aur Gold medal
+        if i == 0:
+            medal = "👑 🥇"
+        elif i == 1:
+            medal = "🥈"
+        elif i == 2:
+            medal = "🥉"
+        else:
+            medal = "🏅" 
+            
+        text += f"{medal} **{data['name']}** - {data['bal']} Rs\n"
+        
+    text += "\n🔥 Khelte raho aur apna naam upar lao sa!"
+    bot.reply_to(message, text)
     
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
