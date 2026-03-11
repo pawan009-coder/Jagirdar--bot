@@ -270,31 +270,25 @@ def buy_shield(message):
 
 @bot.message_handler(commands=['imagine', 'photo'])
 def generate_image(message):
-    # Agar user ne sirf command likhi aur aage kuch nahi likha
     if len(message.text.split()) == 1:
-        return bot.reply_to(message, "🎨 Photo banane ke liye aise likho:\n`/imagine [kuch bhi likho]`\n\n💡 Jaise: `/imagine a flying neon car in Jodhpur`", parse_mode="Markdown")
+        return bot.reply_to(message, "🎨 Photo banane ke liye aise likho:\n`/imagine [kuch bhi likho]`", parse_mode="Markdown")
     
-    # Group mein bot ke naam ke aage 'sending photo...' likha aayega
     bot.send_chat_action(message.chat.id, 'upload_photo')
-    
-    # User ne jo prompt likha hai, use nikalna
     prompt = message.text.replace("/imagine", "").replace("/photo", "").strip()
-    
-    # Text ko URL mein fit hone ke kabil banana (spaces ko %20 banana)
     safe_prompt = urllib.parse.quote(prompt)
     
-    # Ye hai wo free jaadui link jo bina API key ke photo banata hai
-    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true"
+    # Naya advance tarika (Direct image download)
+    seed = random.randint(1, 10000)
+    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&seed={seed}"
     
     try:
-        # Direct internet se photo utha kar Telegram par bhejna
-        bot.send_photo(
-            message.chat.id, 
-            image_url, 
-            caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}"
-        )
+        res = requests.get(image_url, timeout=40)
+        if res.status_code == 200:
+            bot.send_photo(message.chat.id, res.content, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
+        else:
+            bot.reply_to(message, "❌ Server thoda aalsi ho raha hai sa! Ek baar wapas likho.")
     except Exception as e:
-        bot.reply_to(message, "❌ Photo banne mein thodi dikkat aayi sa! Server thoda busy ho sakta hai, thodi der baad try karein.")
+        bot.reply_to(message, "❌ Photo aane mein dikkat hui. Wapas try karein sa!")
         
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
