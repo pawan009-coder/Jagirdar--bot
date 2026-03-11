@@ -328,6 +328,7 @@ def play_dart(message):
     else:
         u['bal'] -= amt # Paise cut gaye
         bot.reply_to(dart_msg, f"❌ **CHOOOK GAYE!**\nTeer bahar nikal gaya sa! (Score: {value}/6)\nAap **{amt} Rs** haar gaye. 💸")
+
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
@@ -343,27 +344,21 @@ def rob_cmd(message):
     if message.from_user.id == t_obj.id: return bot.reply_to(message, "Khud ki jeb katega kya?")
     if r['status'] == "Dead" or t['status'] == "Dead": return bot.reply_to(message, "Murdo ke beech game nahi hota.")
     
-    # 🛡️ Admin Unlimited Shield Check
     if t_obj.id == ADMIN_ID: 
         return bot.reply_to(message, "👑 **Aukaat mein reh!** Admin ke paas Unlimited Shield hai, use koi nahi loot sakta!")
         
-    # Normal User Shield Check
     if time.time() < t['shield_until']: 
         return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)!")
     
-    # Paise check karna
     if t['bal'] < loot_amt: 
         return bot.reply_to(message, f"Arey iske paas itne paise hi nahi hain! Iske paas sirf {t['bal']} Rs bache hain.")
     
-    # 50% chance, BINa POLICE FINE KE
-    if random.choice([True, False]): 
-        tax = int(loot_amt * 0.05) # 5% tax
-        t['bal'] -= loot_amt
-        r['bal'] += (loot_amt - tax)
-        bot.reply_to(message, f"🥷 **ROB SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {loot_amt - tax} Rs! 💰")
-    else:
-        # Koi fine nahi katega
-        bot.reply_to(message, f"❌ **ROB FAILED!**\nChori nakam rahi! Target bach nikla. (Aap par koi fine nahi laga).")
+    # 🔥 100% Chori Success (Fail wala system hata diya)
+    tax = int(loot_amt * 0.05) # 5% tax
+    t['bal'] -= loot_amt
+    r['bal'] += (loot_amt - tax)
+    bot.reply_to(message, f"🥷 **ROB 100% SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {loot_amt - tax} Rs! 💰\nChori ekdum sateek rahi sa!")
+    
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
