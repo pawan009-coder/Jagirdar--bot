@@ -139,7 +139,7 @@ def get_ai_response(user_text):
         
         # Insaan banne ki training aur user ka text
         payload = {
-            "model": "llama3-8b-8192", # Ye model hawa se baatein karta hai (super fast)
+            "model": "llama-3.1-8b-instant", # Ye model hawa se baatein karta hai (super fast)
             "messages": [
                 {
                     "role": "system", 
