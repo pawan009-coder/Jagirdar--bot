@@ -124,31 +124,37 @@ def check_membership(uid):
 
 def get_ai_response(user_text):
     try:
-        # Dekho sa, yahan URL mein ab gemini-2.5-flash lag gaya hai!
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # 🔥 Bot ko Insaan banne ki sakt training (System Prompt)
+        system_prompt = (
+            "Tu ek asli insaan hai, ek samjdaar banda. Tera naam Daimond batch hai. "
+            "Rule 1: Kabhi mat bolna ki tu AI, bot ya machine hai. Agar koi puche toh gussa ho jana aur bolna tu asli banda hai. "
+            "Rule 2: Hamesha sirf 1 ya 2 line mein chota aur casual jawab dena. Lamba bhashan nahi. "
+            "Rule 3: Hinglish (Hindi written in English) mein baat karna. "
+            "User ne ye kaha hai: "
+        )
         
-        payload = {
-            "contents": [{"parts": [{"text": f"Tu daimond batch ka bot hai jo ki team nexttoppers ke daimond batch ke baccho ka dost hai ishleye waise hi jawab de: {user_text}"}]}], 
-            "safetySettings": [
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}, 
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}, 
-                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"}, 
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
-            ]
+        # User ki baat ko prompt ke sath jodna
+        full_prompt = system_prompt + user_text
+        safe_prompt = urllib.parse.quote(full_prompt)
+        
+        # 🚀 100% Free & Unlimited Pollinations Text API (Bina kisi chaabi ke!)
+        url = f"https://text.pollinations.ai/{safe_prompt}"
+        
+        # Server ko lagega Chrome se request aayi hai
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124'
         }
         
-        res = requests.post(url, json=payload, timeout=60)
-        res_json = res.json()
+        res = requests.get(url, headers=headers, timeout=30)
         
-        if 'candidates' in res_json: 
-            return res_json['candidates'][0]['content']['parts'][0]['text']
-        else: 
-            # Error aane par ab seedha Telegram par asli bimari dikhegi
-            return f"⚠️ API BIMARI: {res_json.get('error', {}).get('message', 'Unknown Error')}"
+        if res.status_code == 200:
+            # Faltu spaces hata kar saaf jawab bhejna
+            return res.text.strip()
+        else:
+            return "Yaar abhi thoda busy hu, baad mein message karna."
             
     except Exception as e: 
-        return f"🔌 Taar hila hua hai! Asli Bimari: {str(e)}"
-
+        return "Bhai network ka lafda chal raha hai, meri aawaz aa rahi hai kya?"
 def background_monitor():
     while True:
         try:
