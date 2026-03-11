@@ -136,7 +136,7 @@ def get_ai_response(user_text):
             ]
         }
         
-        res = requests.post(url, json=payload, timeout=10)
+        res = requests.post(url, json=payload, timeout=60)
         res_json = res.json()
         
         if 'candidates' in res_json: 
