@@ -392,9 +392,14 @@ def kill_cmd(message):
     r = get_user(message.from_user)
     t_obj = message.reply_to_message.from_user
     t = get_user(t_obj)
+    
     if r['status'] == "Dead": return bot.reply_to(message, "Murda kisi ko nahi maar sakta.")
     if t['status'] == "Dead": return bot.reply_to(message, "Pehle se mara hua hai.")
-    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "Admin ko nahi maar sakte!")
+    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 Admin ko nahi maar sakte!")
+    
+    # 🛡️ SHIELD CHECK (Ye naya add kiya hai)
+    if time.time() < t['shield_until']: 
+        return bot.reply_to(message, "🛡️ **Aukaat mein reh!** Target protected hai (Shield Active)! iske tu kuch nahi kr  nahi sakta.")
     
     t['status'] = "Dead"
     t['death_time'] = time.time()
