@@ -37,9 +37,9 @@ except Exception as e:
 # Bot Initialization
 bot = telebot.TeleBot(API_TOKEN)
 
-API_TOKEN = '8625875353:AAECoBaDSeZyLkX21ZNhhCdilnVWhYMLpAY'
+API_TOKEN = GEMINI_API_KEY = os.environ.get('TELEGRAM_TOKEN')
 # Groq hata kar wapas Gemini ki chaabi lagao
-GEMINI_API_KEY = 'AIzaSyBA3I4mcdPn9H38ABIWHYgyVhl12UY7uTc' # Yahan apni chalu Gemini key dalna
+GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
 bot = telebot.TeleBot(API_TOKEN)
