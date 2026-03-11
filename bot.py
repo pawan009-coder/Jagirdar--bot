@@ -202,12 +202,23 @@ def check_bal(message):
     target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
     u = get_user(target_obj)
     
-    # Global rank aur total users nikalna
     rank = get_rank(target_obj.id)
     total_users = len(users)
     
-    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n❤️ Status: {u['status']}")
-
+    # Shield Status Check
+    is_protected = time.time() < u['shield_until']
+    shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
+    
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔰 Shield: {shield_status}\n❤️ Status: {u['status']}")
+    
+    # DM Message agar paise 1500 se kam hain (Sirf khud ka balance dekhne par)
+    if target_obj.id == message.from_user.id and u['bal'] < 1500:
+        try:
+            dm_text = "Bhai, bhut se bande aise hai jinhone protection nahi lagaya. Unhe loot aur /daily aur /weekly command dal kr lele paise unse kuch toh rank up hogi hi teri aur protection lga kr rakhna!"
+            bot.send_message(message.from_user.id, dm_text)
+        except:
+            pass # Agar user ne bot ko DM mein start nahi kiya hoga toh error nahi aayega
+            
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
     if not users:
