@@ -54,7 +54,7 @@ bot.set_my_commands([
     BotCommand("dart", "Kismat azmayein (/dart amount)"),
     BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
     BotCommand("give", "Kisi ko paise donate karein"),
-    BotCommand("udhar", "Loan offer karein"),
+    BotCommand("loan", "Loan offer karein"),
     BotCommand("return", "Udhar wapas karein"),
     BotCommand("rob", "Dusre ke paise churayein"),
     BotCommand("kill", "Shikaar karein (500 Rs inam)"),
@@ -62,6 +62,7 @@ bot.set_my_commands([
     BotCommand("xo", "Tic-Tac-Toe khelein (/xo amount)"),
     BotCommand("ban", "👑 Group se nikalein"),
     BotCommand("mute", "👑 Chup karayein"),
+    BotCommand("say", "👑apna message sab ko bhejo"),
     BotCommand("askpoll", "👑 Daily poll bhejein")
 ])
 
@@ -70,7 +71,7 @@ active_groups = set()
 pending_loans = {}
 xo_games = {}
 poll_voters = set()
-
+pending_says = {}
 # Database se purana data nikalna
 print("Loading data from database...")
 try:
@@ -396,7 +397,7 @@ def revive_cmd(message):
     t['status'] = "Alive"
     bot.reply_to(message, "💉 Revived! 700 Rs kat gaye.")
 
-@bot.message_handler(commands=['udhar'])
+@bot.message_handler(commands=['loan'])
 def loan_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
@@ -464,6 +465,41 @@ def check_win(b):
     if "-" not in b: return "Tie"
     return None
 
+@bot.message_handler(commands=['say'])
+def admin_say_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    if message.chat.type != 'private':
+        return bot.reply_to(message, "🤫 Boss, ye command sirf DM mein chalti hai!")
+        
+    # Check ki reply kiya hai ya direct likha hai
+    is_reply = message.reply_to_message is not None
+    
+    if not is_reply and len(message.text.split()) == 1:
+        return bot.reply_to(message, "❌ Ya toh kisi photo/message par reply karke `/say` likho, ya fir `/say Hello` aise likho.")
+        
+    # Message ka data save karna
+    pending_says[message.from_user.id] = {
+        'type': 'copy' if is_reply else 'text',
+        'content': message.reply_to_message.message_id if is_reply else message.text.replace('/say', '', 1).strip()
+    }
+    
+    # Button wali List Banana
+    markup = InlineKeyboardMarkup(row_width=1)
+    if not active_groups:
+        return bot.reply_to(message, "⚠️ Abhi tak koi group active nahi hai (Bot restart hone ke baad group mein kisi ka msg aana zaroori hai).")
+        
+    # Har group ka button
+    for gid in list(active_groups):
+        try:
+            chat_info = bot.get_chat(gid)
+            title = chat_info.title if chat_info.title else f"Group {gid}"
+            markup.add(InlineKeyboardButton(f"📢 {title}", callback_data=f"say_{gid}"))
+        except: pass
+        
+    # All groups ka option sabse neeche
+    markup.add(InlineKeyboardButton("🔥 Send to ALL Groups", callback_data="say_all"))
+    bot.reply_to(message, "Boss, ye message kahan bhejna hai?", reply_markup=markup)
+    
 @bot.message_handler(commands=['askpoll'])
 def ask_poll(message):
     if message.from_user.id != ADMIN_ID: return
