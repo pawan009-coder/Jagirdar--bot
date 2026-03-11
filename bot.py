@@ -37,7 +37,7 @@ except Exception as e:
 # Bot Initialization
 bot = telebot.TeleBot(API_TOKEN)
 
-API_TOKEN = GEMINI_API_KEY = os.environ.get('TELEGRAM_TOKEN')
+API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 # Groq hata kar wapas Gemini ki chaabi lagao
 GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 ADMIN_ID = 7574760011 
@@ -146,7 +146,7 @@ def get_ai_response(user_text):
             return f"⚠️ API BIMARI: {res_json.get('error', {}).get('message', 'Unknown Error')}"
             
     except Exception as e: 
-        return "🔌 Network issue sa! API ka taar hil gaya hai."
+        return f"🔌 Taar hila hua hai! Asli Bimari: {str(e)}"
 
 def background_monitor():
     while True:
