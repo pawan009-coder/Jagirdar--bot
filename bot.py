@@ -124,37 +124,37 @@ def check_membership(uid):
 
 def get_ai_response(user_text):
     try:
-        # 🔥 Bot ko Insaan banne ki sakt training (System Prompt)
-        system_prompt = (
-            "Tu ek asli insaan hai, ek samjdaar banda. Tera naam Daimond batch hai. "
-            "Rule 1: Kabhi mat bolna ki tu AI, bot ya machine hai. Agar koi puche toh gussa ho jana aur bolna tu asli banda hai. "
-            "Rule 2: Hamesha sirf 1 ya 2 line mein chota aur casual jawab dena. Lamba bhashan nahi. "
-            "Rule 3: Hinglish (Hindi written in English) mein baat karna. "
-            "User ne ye kaha hai: "
-        )
+        # 🚀 API ko fast karne ke liye direct POST request aur 'llama' model
+        url = "https://text.pollinations.ai/"
         
-        # User ki baat ko prompt ke sath jodna
-        full_prompt = system_prompt + user_text
-        safe_prompt = urllib.parse.quote(full_prompt)
-        
-        # 🚀 100% Free & Unlimited Pollinations Text API (Bina kisi chaabi ke!)
-        url = f"https://text.pollinations.ai/{safe_prompt}"
-        
-        # Server ko lagega Chrome se request aayi hai
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124'
+        payload = {
+            "messages": [
+                {
+                    "role": "system", 
+                    "content": "Tu ek asli insaan hai, Jo ki kafi samajdaar hai. Tera naam dsimond batch hai. Kabhi mat bolna ki tu AI, machine ya bot hai. Hamesha sirf 1 ya 2 line mein chota aur desi (Hinglish) jawab dena."
+                },
+                {
+                    "role": "user", 
+                    "content": user_text
+                }
+            ],
+            "model": "llama" # Llama model sabse fast reply karta hai
         }
         
-        res = requests.get(url, headers=headers, timeout=30)
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        # 10 second se zyada wait nahi karega
+        res = requests.post(url, json=payload, headers=headers, timeout=10)
         
         if res.status_code == 200:
-            # Faltu spaces hata kar saaf jawab bhejna
             return res.text.strip()
         else:
-            return "Yaar abhi thoda busy hu, baad mein message karna."
+            return "Bhai abhi thoda kaam mein fasa hu, baad mein batata hu."
             
     except Exception as e: 
-        return "Bhai network ka lafda chal raha hai, meri aawaz aa rahi hai kya?"
+        return "Yaar yahan network thoda slow chal raha hai abhi."
 def background_monitor():
     while True:
         try:
