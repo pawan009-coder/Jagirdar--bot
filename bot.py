@@ -244,7 +244,8 @@ def top_richest(message):
         # Topper ko Crown aur Gold medal
         if i == 0:
             medal = "👑 🥇"
-        @bot.message_handler(commands=['bal'])
+
+@bot.message_handler(commands=['bal'])
 def check_bal(message):
     target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
     u = get_user(target_obj)
@@ -252,27 +253,21 @@ def check_bal(message):
     rank = get_rank(target_obj.id)
     total_users = len(users)
     
-    is_protected = time.time() < u['shield_until']
-    shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
+    # 🔥 ADMIN KO PERMANENT PROTECTED DIKHANA
+    if target_obj.id == ADMIN_ID:
+        shield_status = "🛡️ UNLIMITED (Admin)"
+    else:
+        is_protected = time.time() < u['shield_until']
+        shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
     
-    # 🔪 Kills yahan add kiya gaya hai
     bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n❤️ Status: {u['status']}")
     
-    if target_obj.id == message.from_user.id and u['bal'] < 1500:
+    # DM Message for low balance (admin ko ye DM na jaye isliye ADMIN_ID check lagaya)
+    if target_obj.id == message.from_user.id and u['bal'] < 1500 and target_obj.id != ADMIN_ID:
         try:
             bot.send_message(message.from_user.id, "Bhai, bhut se bande aise hai jinhone protection nahi lagaya. Unhe loot aur /daily aur /weekly command dal kr lele paise unse kuch toh rank up hogi hi teri aur protection lga kr rakhna!")
-        except: passelif i == 1:
-            medal = "🥈"
-        elif i == 2:
-            medal = "🥉"
-        else:
-            medal = "🏅" 
-            
-        text += f"{medal} **{data['name']}** - {data['bal']} Rs\n"
-        
-    text += "\n🔥 Khelte raho aur apna naam upar lao sa!"
-    bot.reply_to(message, text)
-    
+        except: pass
+
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
     # Agar Admin shield command lagata hai
@@ -363,6 +358,30 @@ def play_dart(message):
         u['bal'] -= amt # Paise cut gaye
         bot.reply_to(dart_msg, f"❌ **CHOOOK GAYE!**\nTeer bahar nikal gaya sa! (Score: {value}/6)\nAap **{amt} Rs** haar gaye. 💸")
 
+@bot.message_handler(commands=['dice'])
+def play_dice(message):
+    u = get_user(message.from_user)
+    if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde ludo nahi khelte sa!")
+    
+    try: amt = int(message.text.split()[1])
+    except: return bot.reply_to(message, "❌ Sahi format: /dice 100")
+        
+    if u['bal'] < amt: return bot.reply_to(message, "❌ Itne paise nahi hain aapke paas!")
+        
+    dice_msg = bot.send_dice(message.chat.id, emoji='🎲')
+    time.sleep(3)
+    
+    value = dice_msg.dice.value
+    
+    # 1/6 chance: Sirf 6 number aane par hi 3 Guna paisa milega!
+    if value == 6:
+        win_amt = amt * 3
+        u['bal'] += win_amt 
+        bot.reply_to(dice_msg, f"🎲 **JACKPOT! (Score: 6)**\nKismat chamak gayi sa! Aapka paisa 3 GUNA ho gaya.\nAap **{win_amt} Rs** jeet gaye! 💰")
+    else:
+        u['bal'] -= amt 
+        bot.reply_to(dice_msg, f"❌ **HAAR GAYE! (Score: {value})**\nLudo mein kismat kharab nikli sa!\nAap **{amt} Rs** haar gaye. 💸")
+
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
@@ -385,12 +404,13 @@ def rob_cmd(message):
     t['bal'] -= loot_amt
     r['bal'] += net_loot
     
-    # 📜 History mein likhna
-    add_history(r_obj.id, f"🥷 {t['name']} ko loota aur {net_loot} Rs kamaye (Tax kaat kar).")
+    add_history(r_obj.id, f"🥷 {t['name']} ko loota aur {net_loot} Rs kamaye.")
     add_history(t_obj.id, f"💸 {r['name']} ne {loot_amt} Rs ki chori ki.")
     
-    bot.reply_to(message, f"🥷 **ROB 100% SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {net_loot} Rs! 💰")
-    
+    # 🔥 VIP Legend Message
+    msg = f"🥷 **MAHA-CHOR!** 🥷\n\n**{r['name']}** ne \n💸 loota **{t['name']}** ko\n\n🏆 Level: {get_level(r['bal'])}\n💰 Chori: {loot_amt} Rs\n🤑 Mila (Tax kat ke): {net_loot} Rs"
+    bot.reply_to(message, msg)
+
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
@@ -402,20 +422,19 @@ def kill_cmd(message):
     if r['status'] == "Dead": return bot.reply_to(message, "Murda kisi ko nahi maar sakta.")
     if t['status'] == "Dead": return bot.reply_to(message, "Pehle se mara hua hai.")
     if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 Admin ko nahi maar sakte!")
-    
-    if time.time() < t['shield_until']: 
-        return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)! Aap isko maar nahi sakte.")
+    if time.time() < t['shield_until']: return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)! Aap isko maar nahi sakte.")
     
     t['status'] = "Dead"
     t['death_time'] = time.time()
     r['bal'] += 500
-    r['kills'] = r.get('kills', 0) + 1 # 👈 Kill count badhaya
+    r['kills'] = r.get('kills', 0) + 1 
     
-    # 📜 History mein likhna
     add_history(r_obj.id, f"🔪 {t['name']} ka khoon kiya aur 500 Rs kamaye.")
     add_history(t_obj.id, f"☠️ {r['name']} ne khoon kar diya.")
     
-    bot.reply_to(message, "☠️ KILLED! Target dead, aapko 500 Rs mile.")
+    # 🔥 VIP Legend Message
+    msg = f"☠️ **MAHA-KAAL!** ☠️\n\n**{r['name']}** ne \n🔪 killed **{t['name']}**\n\n🏆 Level: {get_level(r['bal'])}\n💀 Total Kills: {r['kills']}\n💰 Inam: 500 Rs"
+    bot.reply_to(message, msg)
 
 @bot.message_handler(commands=['revive'])
 def revive_cmd(message):
@@ -423,13 +442,16 @@ def revive_cmd(message):
     r = get_user(message.from_user)
     t = get_user(message.reply_to_message.from_user)
     if r['bal'] < 700: return bot.reply_to(message, "700 Rs chahiye!")
-    if t['status'] == "Alive": return bot.reply_to(message, "Wo zinda hai!")
+    if t['status'] == "Alive": return bot.reply_to(message, "Wo pehle se zinda hai!")
     
     r['bal'] -= 700
     t['status'] = "Alive"
-    bot.reply_to(message, "💉 Revived! 700 Rs kat gaye.")
+    
+    # 🔥 VIP Legend Message
+    msg = f"💉 **SANJEEVANI BOOTI!** 💉\n\n**{r['name']}** ne \n💖 zinda kiya **{t['name']}** ko\n\n🏆 Level: {get_level(r['bal'])}\n💸 Kharcha: 700 Rs"
+    bot.reply_to(message, msg)
 
-@bot.message_handler(commands=['loan', 'udhar'])
+@bot.message_handler(commands=['loan', 'loan'])
 def loan_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
