@@ -104,17 +104,7 @@ def get_rank(uid):
             return rank
     return "N/A"
 
-def get_user(user_obj):
-    uid = user_obj.id
-    if uid not in users:
-        users[uid] = {
-            "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
-            "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
-            "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0}
-        }
-    else:
-        users[uid]["name"] = user_obj.first_name
-    return users[uid]
+
 
 def check_membership(uid):
     try:
@@ -133,7 +123,27 @@ def get_ai_response(user_text):
         url = "https://api.groq.com/openai/v1/chat/completions"
         
         headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Authodef get_user(user_obj):
+    uid = user_obj.id
+    if uid not in users:
+        users[uid] = {
+            "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
+            "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
+            "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0},
+            "kills": 0, "history": [] # 👈 Ye nayi cheezein add hui hain
+        }
+    else:
+        users[uid]["name"] = user_obj.first_name
+        # Purane users ke account mein bhi Kills aur History wala khata kholna
+        if "kills" not in users[uid]: users[uid]["kills"] = 0
+        if "history" not in users[uid]: users[uid]["history"] = []
+    return users[uid]
+
+# 🔥 Naya chota function jo sabka history (kundali) save karega
+def add_history(uid, text):
+    if "history" not in users[uid]: users[uid]["history"] = []
+    users[uid]["history"].insert(0, text)
+    users[uid]["history"] = users[uid]["history"][:10] # Sirf aakhiri 10 kaand yaad rakhegarization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -214,27 +224,7 @@ def gift_cmd(message):
     except: 
         bot.reply_to(message, "❌ Sahi Format: /gift 5000")
 
-@bot.message_handler(commands=['bal'])
-def check_bal(message):
-    target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
-    u = get_user(target_obj)
-    
-    rank = get_rank(target_obj.id)
-    total_users = len(users)
-    
-    # Shield Status Check
-    is_protected = time.time() < u['shield_until']
-    shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
-    
-    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔰 Shield: {shield_status}\n❤️ Status: {u['status']}")
-    
-    # DM Message agar paise 1500 se kam hain (Sirf khud ka balance dekhne par)
-    if target_obj.id == message.from_user.id and u['bal'] < 1500:
-        try:
-            dm_text = "Bhai, bhut se bande aise hai jinhone protection nahi lagaya. Unhe loot aur /daily aur /weekly command dal kr lele paise unse kuch toh rank up hogi hi teri aur protection lga kr rakhna!"
-            bot.send_message(message.from_user.id, dm_text)
-        except:
-            pass # Agar user ne bot ko DM mein start nahi kiya hoga toh error nahi aayega
+
             
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
@@ -254,7 +244,24 @@ def top_richest(message):
         # Topper ko Crown aur Gold medal
         if i == 0:
             medal = "👑 🥇"
-        elif i == 1:
+        @bot.message_handler(commands=['bal'])
+def check_bal(message):
+    target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
+    u = get_user(target_obj)
+    
+    rank = get_rank(target_obj.id)
+    total_users = len(users)
+    
+    is_protected = time.time() < u['shield_until']
+    shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
+    
+    # 🔪 Kills yahan add kiya gaya hai
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n❤️ Status: {u['status']}")
+    
+    if target_obj.id == message.from_user.id and u['bal'] < 1500:
+        try:
+            bot.send_message(message.from_user.id, "Bhai, bhut se bande aise hai jinhone protection nahi lagaya. Unhe loot aur /daily aur /weekly command dal kr lele paise unse kuch toh rank up hogi hi teri aur protection lga kr rakhna!")
+        except: passelif i == 1:
             medal = "🥈"
         elif i == 2:
             medal = "🥉"
@@ -359,51 +366,55 @@ def play_dart(message):
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
-    try:
-        loot_amt = int(message.text.split()[1])
-    except:
-        return bot.reply_to(message, "Sahi format: /rob 1000")
+    try: loot_amt = int(message.text.split()[1])
+    except: return bot.reply_to(message, "Sahi format: /rob 1000")
         
-    r = get_user(message.from_user)
+    r_obj = message.from_user
     t_obj = message.reply_to_message.from_user
+    r = get_user(r_obj)
     t = get_user(t_obj)
     
-    if message.from_user.id == t_obj.id: return bot.reply_to(message, "Khud ki jeb katega kya?")
+    if r_obj.id == t_obj.id: return bot.reply_to(message, "Khud ki jeb katega kya?")
     if r['status'] == "Dead" or t['status'] == "Dead": return bot.reply_to(message, "Murdo ke beech game nahi hota.")
+    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 Admin ke paas Unlimited Shield hai, use koi nahi loot sakta!")
+    if time.time() < t['shield_until']: return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)!")
+    if t['bal'] < loot_amt: return bot.reply_to(message, f"Iiske paas sirf {t['bal']} Rs bache hain.")
     
-    if t_obj.id == ADMIN_ID: 
-        return bot.reply_to(message, "👑 **Aukaat mein reh!** Admin ke paas Unlimited Shield hai, use koi nahi loot sakta!")
-        
-    if time.time() < t['shield_until']: 
-        return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)!")
-    
-    if t['bal'] < loot_amt: 
-        return bot.reply_to(message, f"Arey iske paas itne paise hi nahi hain! Iske paas sirf {t['bal']} Rs bache hain.")
-    
-    # 🔥 100% Chori Success (Fail wala system hata diya)
-    tax = int(loot_amt * 0.05) # 5% tax
+    tax = int(loot_amt * 0.05)
+    net_loot = loot_amt - tax
     t['bal'] -= loot_amt
-    r['bal'] += (loot_amt - tax)
-    bot.reply_to(message, f"🥷 **ROB 100% SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {loot_amt - tax} Rs! 💰\nChori ekdum sateek rahi sa!")
+    r['bal'] += net_loot
+    
+    # 📜 History mein likhna
+    add_history(r_obj.id, f"🥷 {t['name']} ko loota aur {net_loot} Rs kamaye (Tax kaat kar).")
+    add_history(t_obj.id, f"💸 {r['name']} ne {loot_amt} Rs ki chori ki.")
+    
+    bot.reply_to(message, f"🥷 **ROB 100% SUCCESS!**\nAapne {loot_amt} Rs loote. 5% Tax ({tax} Rs) cut hua, aapko mile {net_loot} Rs! 💰")
     
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
-    r = get_user(message.from_user)
+    r_obj = message.from_user
     t_obj = message.reply_to_message.from_user
+    r = get_user(r_obj)
     t = get_user(t_obj)
     
     if r['status'] == "Dead": return bot.reply_to(message, "Murda kisi ko nahi maar sakta.")
     if t['status'] == "Dead": return bot.reply_to(message, "Pehle se mara hua hai.")
     if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 Admin ko nahi maar sakte!")
     
-    # 🛡️ SHIELD CHECK (Ye naya add kiya hai)
     if time.time() < t['shield_until']: 
-        return bot.reply_to(message, "🛡️ **Aukaat mein reh!** Target protected hai (Shield Active)! iske tu kuch nahi kr  nahi sakta.")
+        return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)! Aap isko maar nahi sakte.")
     
     t['status'] = "Dead"
     t['death_time'] = time.time()
     r['bal'] += 500
+    r['kills'] = r.get('kills', 0) + 1 # 👈 Kill count badhaya
+    
+    # 📜 History mein likhna
+    add_history(r_obj.id, f"🔪 {t['name']} ka khoon kiya aur 500 Rs kamaye.")
+    add_history(t_obj.id, f"☠️ {r['name']} ne khoon kar diya.")
+    
     bot.reply_to(message, "☠️ KILLED! Target dead, aapko 500 Rs mile.")
 
 @bot.message_handler(commands=['revive'])
@@ -532,6 +543,77 @@ def ask_poll(message):
     markup.add(InlineKeyboardButton("Yes", callback_data="poll_y"), InlineKeyboardButton("No", callback_data="poll_n"))
     bot.send_message(message.chat.id, "Kya Daimond batch bot accha hai?", reply_markup=markup)
 
+    @bot.message_handler(commands=['topkills'])
+def top_killers(message):
+    if not users: return bot.reply_to(message, "Abhi tak koi data nahi hai sa!")
+    
+    # Kills ke hisaab se sabko sort karna
+    sorted_users = sorted(users.items(), key=lambda x: x[1].get('kills', 0), reverse=True)
+    top_10 = sorted_users[:10]
+    
+    text = "🔪 **GLOBAL TOP 10 SERIAL KILLERS** 🔪\n\n"
+    for i, (uid, data) in enumerate(top_10):
+        if data.get('kills', 0) > 0:
+            text += f"#{i+1} **{data['name']}** - {data.get('kills', 0)} Kills\n"
+            
+    if text == "🔪 **GLOBAL TOP 10 SERIAL KILLERS** 🔪\n\n":
+        text = "Abhi tak is group mein kisi ka khoon nahi hua hai sa! Sab shareef hain."
+    bot.reply_to(message, text)
+
+@bot.message_handler(commands=['addkill'])
+def add_kill_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    if not message.reply_to_message: return bot.reply_to(message, "❌ Reply karke number likho: /addkill 5")
+    try:
+        amt = int(message.text.split()[1])
+        t_obj = message.reply_to_message.from_user
+        t = get_user(t_obj)
+        t['kills'] = t.get('kills', 0) + amt
+        add_history(t_obj.id, f"👑 Admin ne {amt} Kills gift kiye.")
+        bot.reply_to(message, f"✅ **Kills Added!**\nBoss, {t_obj.first_name} ke {amt} kills badha diye hain. Total Kills: {t['kills']}")
+    except: 
+        bot.reply_to(message, "❌ Sahi format: /addkill 5")
+
+@bot.message_handler(commands=['detail'])
+def detail_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    if not message.reply_to_message: return bot.reply_to(message, "Boss, kisi ke message par reply karke /detail likho.")
+    
+    t_obj = message.reply_to_message.from_user
+    t = get_user(t_obj)
+    
+    hist_list = t.get('history', [])
+    hist_text = "\n".join(hist_list) if hist_list else "Koi criminal record nahi hai."
+    
+    text = f"🕵️‍♂️ **KUNDALI: {t['name']}**\n"
+    text += f"💰 Balance: {t['bal']} Rs\n"
+    text += f"🔪 Kills: {t.get('kills', 0)}\n"
+    text += f"❤️ Status: {t['status']}\n\n"
+    text += f"📜 **AAKHIRI KAAND (HISTORY):**\n{hist_text}"
+    
+    try:
+        bot.send_message(ADMIN_ID, text)
+        bot.reply_to(message, f"✅ Boss! Maine aapko DM mein {t['name']} ki poori kundali bhej di hai.")
+    except:
+        bot.reply_to(message, "❌ Boss, pehle mujhe DM mein /start bol kar jagao taaki main aapko kundali bhej saku.")
+
+@bot.message_handler(commands=['all'])
+def tag_all(message):
+    if message.from_user.id != ADMIN_ID: return
+    if message.chat.type == 'private': return bot.reply_to(message, "Boss, ye command group me hi chalti hai!")
+    
+    text = "📢 **Oye sab log! Group soona pada hai, aake baat karo!**\n\n"
+    mentions = ""
+    count = 0
+    
+    # Database se logo ko utha kar unka tag banana (Telegram ek message me max 50 allow karta hai)
+    for uid, data in users.items():
+        mentions += f"[{data['name']}](tg://user?id={uid}) "
+        count += 1
+        if count >= 45: break 
+        
+    bot.send_message(message.chat.id, text + mentions, parse_mode="Markdown")
+    
 @bot.message_handler(commands=['ban', 'unban', 'mute', 'unmute', 'pin'])
 def rose_features(message):
     if not check_membership(message.from_user.id): return
