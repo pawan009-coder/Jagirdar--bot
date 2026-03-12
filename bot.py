@@ -47,6 +47,7 @@ bot = telebot.TeleBot(API_TOKEN)
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
     BotCommand("bal", "Apna khaata aur level dekhein"),
+    BotCommand("shop", "apne aap ko upgrade kare"),
     BotCommand("toprank", "Top 10 ameer log"),
     BotCommand("topkills", "Top 10 Serial Killers"),
     BotCommand("daily", "Har 24 ghante ka inam"),
@@ -77,6 +78,15 @@ pending_loans = {}
 xo_games = {}
 poll_voters = set()
 pending_says = {}
+# 🛒 CHOR BAZAAR KA SAMAAN
+SHOP_ITEMS = {
+    "chakku": {"name": "🔪 Chakku", "price": 1500, "desc": "Rob karne par 200 Rs extra milenge."},
+    "katta": {"name": "🔫 Desi Katta", "price": 8000, "desc": "Kill ka inaam 500 se 1500 Rs ho jayega."},
+    "jacket": {"name": "🦺 Bulletproof Jacket", "price": 15000, "desc": "1 baar goli (Kill) se bachayegi (Phat jayegi)."},
+    "kutta": {"name": "🐕 Khufiya Kutta", "price": 30000, "desc": "Rob hone par 30% chance hai kutta chor ko kaat lega."},
+    "ak47": {"name": "💣 AK-47", "price": 100000, "desc": "Kill ka inaam seedha 5000 Rs!"},
+    "don": {"name": "👑 Don Taj", "price": 500000, "desc": "VIP Status aur Daily/Weekly inam DOUBLE!"}
+}
 # Database se purana data nikalna
 print("Loading data from database...")
 try:
@@ -98,13 +108,13 @@ def get_user(user_obj):
             "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
             "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
             "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0},
-            "kills": 0, "history": [] 
+            "kills": 0, "history": [], "inventory": [] # 👈 Jhola add kiya
         }
     else:
         users[uid]["name"] = user_obj.first_name
-        # Purane users ke account mein bhi Kills aur History wala khata kholna
         if "kills" not in users[uid]: users[uid]["kills"] = 0
         if "history" not in users[uid]: users[uid]["history"] = []
+        if "inventory" not in users[uid]: users[uid]["inventory"] = [] # Purane logo ko jhola dena
     return users[uid]
 
 def add_history(uid, text):
@@ -238,20 +248,14 @@ def check_bal(message):
     rank = get_rank(target_obj.id)
     total_users = len(users)
     
-    # 🔥 ADMIN KO PERMANENT PROTECTED DIKHANA
-    if target_obj.id == ADMIN_ID:
-        shield_status = "🛡️ UNLIMITED (Admin)"
-    else:
-        is_protected = time.time() < u['shield_until']
-        shield_status = "🛡️ Protected" if is_protected else "❌ Protection Expired"
+    if target_obj.id == ADMIN_ID: shield_status = "🛡️ UNLIMITED (Admin)"
+    else: shield_status = "🛡️ Protected" if time.time() < u['shield_until'] else "❌ Protection Expired"
     
-    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n❤️ Status: {u['status']}")
+    # 🎒 Inventory nikalna
+    inv = u.get('inventory', [])
+    inv_text = ", ".join(inv) if inv else "Kuch nahi (Nanga/Garib)"
     
-    # DM Message for low balance (admin ko ye DM na jaye isliye ADMIN_ID check lagaya)
-    if target_obj.id == message.from_user.id and u['bal'] < 1500 and target_obj.id != ADMIN_ID:
-        try:
-            bot.send_message(message.from_user.id, "Bhai, bhut se bande aise hai jinhone protection nahi lagaya. Unhe loot aur /daily aur /weekly command dal kr lele paise unse kuch toh rank up hogi hi teri aur protection lga kr rakhna!")
-        except: pass
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n🎒 **Samaan:** {inv_text}\n❤️ Status: {u['status']}")
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
@@ -350,6 +354,17 @@ def play_dart(message):
         u['bal'] -= amt # Paise cut gaye
         bot.reply_to(dart_msg, f"❌ **CHOOOK GAYE!**\nTeer bahar nikal gaya sa! (Score: {value}/6)\nAap **{amt} Rs** haar gaye. 💸")
 
+@bot.message_handler(commands=['shop', 'bazaar'])
+def open_shop(message):
+    text = "🛒 **CHOR BAZAAR MEIN SWAGAT HAI** 🛒\n\nYahan paise phek tamasha dekh! Apni aukaat ke hisaab se item khareedo:\n\n"
+    markup = InlineKeyboardMarkup(row_width=1)
+    
+    for k, v in SHOP_ITEMS.items():
+        text += f"{v['name']} - 💰 {v['price']} Rs\n📝 Fayda: {v['desc']}\n\n"
+        markup.add(InlineKeyboardButton(f"🛒 Buy {v['name']} ({v['price']} Rs)", callback_data=f"buy_{k}"))
+    
+    bot.reply_to(message, text, reply_markup=markup)
+    
 @bot.message_handler(commands=['dice'])
 def play_dice(message):
     u = get_user(message.from_user)
@@ -422,16 +437,22 @@ def rob_cmd(message):
     if time.time() < t['shield_until']: return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)!")
     if t['bal'] < loot_amt: return bot.reply_to(message, f"Iiske paas sirf {t['bal']} Rs bache hain.")
     
+    # 🐕 KUTTA DEFENSE (30% chance)
+    if "🐕 Khufiya Kutta" in t.get('inventory', []):
+        if random.random() < 0.30: # 30% Chance
+            r['bal'] -= 500 # Injection ka kharcha
+            return bot.reply_to(message, f"🐕 **BHAU BHAU!**\n**{t['name']}** ke Khufiya Kutte ne tujhe kaat liya! Chori fail, ulta 500 Rs ilaaj mein lag gaye.")
+    
+    # 🔪 CHAKKU BONUS
+    bonus = 200 if "🔪 Chakku" in r.get('inventory', []) else 0
+    
     tax = int(loot_amt * 0.05)
-    net_loot = loot_amt - tax
+    net_loot = (loot_amt - tax) + bonus
     t['bal'] -= loot_amt
     r['bal'] += net_loot
     
-    add_history(r_obj.id, f"🥷 {t['name']} ko loota aur {net_loot} Rs kamaye.")
-    add_history(t_obj.id, f"💸 {r['name']} ne {loot_amt} Rs ki chori ki.")
-    
-    # 🔥 VIP Legend Message
-    msg = f"🥷 **MAHA-CHOR!** 🥷\n\n**{r['name']}** ne \n💸 loota **{t['name']}** ko\n\n🏆 Level: {get_level(r['bal'])}\n💰 Chori: {loot_amt} Rs\n🤑 Mila (Tax kat ke): {net_loot} Rs"
+    chakku_text = f"\n🔪 Chakku Bonus: +200 Rs" if bonus else ""
+    msg = f"🥷 **MAHA-CHOR!** 🥷\n\n**{r['name']}** ne \n💸 loota **{t['name']}** ko\n\n💰 Chori: {loot_amt} Rs\n🤑 Mila (Tax kat ke): {net_loot - bonus} Rs{chakku_text}"
     bot.reply_to(message, msg)
 
 @bot.message_handler(commands=['kill'])
@@ -444,19 +465,33 @@ def kill_cmd(message):
     
     if r['status'] == "Dead": return bot.reply_to(message, "Murda kisi ko nahi maar sakta.")
     if t['status'] == "Dead": return bot.reply_to(message, "Pehle se mara hua hai.")
-    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 Admin ko nahi maar sakte!")
+    if t_obj.id == ADMIN_ID: return bot.reply_to(message, "👑 proteced hai!")
     if time.time() < t['shield_until']: return bot.reply_to(message, "🛡️ Target protected hai (Shield Active)! Aap isko maar nahi sakte.")
+    
+    # 🦺 BULLETPROOF JACKET CHECK (Sirf 1 baar bachayegi)
+    if "🦺 Bulletproof Jacket" in t.get('inventory', []):
+        t['inventory'].remove("🦺 Bulletproof Jacket")
+        return bot.reply_to(message, f"💥 **DHAAYN!**\nGoli chali par **{t['name']}** ne 🦺 Bulletproof Jacket pehni thi! Wo maut se bach gaya par uski Jacket phat gayi.")
+    
+    # 🔫 WEAPON CHECK (Inaam badhana)
+    reward = 500
+    weapon_used = "Nange hath"
+    if "💣 AK-47" in r.get('inventory', []): 
+        reward = 5000
+        weapon_used = "💣 AK-47"
+    elif "🔫 Desi Katta" in r.get('inventory', []): 
+        reward = 1500
+        weapon_used = "🔫 Desi Katta"
     
     t['status'] = "Dead"
     t['death_time'] = time.time()
-    r['bal'] += 500
+    r['bal'] += reward
     r['kills'] = r.get('kills', 0) + 1 
     
-    add_history(r_obj.id, f"🔪 {t['name']} ka khoon kiya aur 500 Rs kamaye.")
+    add_history(r_obj.id, f"🔪 {t['name']} ka khoon kiya ({weapon_used}) aur {reward} Rs kamaye.")
     add_history(t_obj.id, f"☠️ {r['name']} ne khoon kar diya.")
     
-    # 🔥 VIP Legend Message
-    msg = f"☠️ **MAHA-KAAL!** ☠️\n\n**{r['name']}** ne \n🔪 killed **{t['name']}**\n\n🏆 Level: {get_level(r['bal'])}\n💀 Total Kills: {r['kills']}\n💰 Inam: 500 Rs"
+    msg = f"☠️ **MAHA-KAAL!** ☠️\n\n**{r['name']}** ne \n🔪 killed **{t['name']}**\n\n🔫 Hathiyar: {weapon_used}\n💀 Total Kills: {r['kills']}\n💰 Inam: {reward} Rs"
     bot.reply_to(message, msg)
 
 @bot.message_handler(commands=['revive'])
@@ -508,17 +543,7 @@ def repay_cmd(message):
     u['loan']['active'] = False
     bot.reply_to(message, "✅ Udhar chukta hua!")
 
-@bot.message_handler(commands=['daily', 'weekly'])
-def claims(message):
-    u = get_user(message.from_user)
-    cmd = message.text.split()[0].lower()
-    t = time.time()
-    if cmd == '/daily':
-        if t - u['last_daily'] > 86400: u['bal'] += 200; u['last_daily'] = t; bot.reply_to(message, "🎁 200 rs mile!")
-        else: bot.reply_to(message, "Kal aana!")
-    elif cmd == '/weekly':
-        if t - u['last_weekly'] > 604800: u['bal'] += 2000; u['last_weekly'] = t; bot.reply_to(message, "🎁 2000 rs mile!")
-        else: bot.reply_to(message, "Agle hafte aana!")
+
 
 @bot.message_handler(commands=['xo'])
 def xo_start(message):
@@ -536,7 +561,26 @@ def xo_start(message):
 def xo_markup(gid):
     b = xo_games[gid]['board']
     m = InlineKeyboardMarkup(row_width=3)
-    btns = [InlineKeyboardButton(b[i] if b[i] != "-" else " ", callback_data=f"xo_m_{gid}_{i}") for i in range(9)]
+    btns = [InlineKeyboardButton(b[i] if b[i] != "-" else " ", callback@bot.message_handler(commands=['daily', 'weekly'])
+def claims(message):
+    u = get_user(message.from_user)
+    cmd = message.text.split()[0].lower()
+    t = time.time()
+    
+    # 👑 VIP Don check
+    multiplier = 2 if "👑 Don Taj" in u.get('inventory', []) else 1
+    vip_text = "\n👑 VIP Don Double Bonus!" if multiplier == 2 else ""
+    
+    if cmd == '/daily':
+        if t - u['last_daily'] > 86400: 
+            amt = 200 * multiplier
+            u['bal'] += amt; u['last_daily'] = t; bot.reply_to(message, f"🎁 {amt} rs mile!{vip_text}")
+        else: bot.reply_to(message, "Kal aana!")
+    elif cmd == '/weekly':
+        if t - u['last_weekly'] > 604800: 
+            amt = 2000 * multiplier
+            u['bal'] += amt; u['last_weekly'] = t; bot.reply_to(message, f"🎁 {amt} rs mile!{vip_text}")
+        else: bot.reply_to(message, "Agle hafte aana!")_data=f"xo_m_{gid}_{i}") for i in range(9)]
     m.add(*btns)
     return m
 
@@ -718,7 +762,27 @@ def callbacks(call):
         
         target = d.replace("say_", "")
         data = pending_says[uid]
+
+    elif d.startswith("buy_"):
+        item_id = d.replace("buy_", "")
+        if item_id not in SHOP_ITEMS: return bot.answer_callback_query(call.id, "Ye item dukaan mein nahi hai!")
         
+        item = SHOP_ITEMS[item_id]
+        usr = get_user(u)
+        
+        if usr['bal'] < item['price']:
+            return bot.answer_callback_query(call.id, f"Garib! {item['price']} Rs chahiye iske liye.", show_alert=True)
+            
+        if item['name'] in usr.get('inventory', []):
+            if item_id != "jacket":
+                return bot.answer_callback_query(call.id, "Ye item pehle se hai tere paas! Ek hi kafi hai.", show_alert=True)
+            elif usr['inventory'].count(item['name']) >= 3:
+                return bot.answer_callback_query(call.id, "Bhai max 3 jacket hi pehan sakta hai!", show_alert=True)
+        
+        usr['bal'] -= item['price']
+        usr["inventory"].append(item['name'])
+        bot.answer_callback_query(call.id, f"🎉 {item['name']} khareed liya!", show_alert=True)
+        bot.edit_message_text(f"✅ Wah Seth ji! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
         def send_to_chat(chat_id):
             # Agar photo/video par reply tha, toh exact waise hi copy karega bina "Forwarded" tag ke
             if data['type'] == 'copy':
