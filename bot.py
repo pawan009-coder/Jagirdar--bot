@@ -418,7 +418,7 @@ def revive_cmd(message):
     t['status'] = "Alive"
     bot.reply_to(message, "💉 Revived! 700 Rs kat gaye.")
 
-@bot.message_handler(commands=['loan'])
+@bot.message_handler(commands=['loan', 'udhar'])
 def loan_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
@@ -426,15 +426,19 @@ def loan_cmd(message):
         s = get_user(message.from_user)
         r_obj = message.reply_to_message.from_user
         r = get_user(r_obj)
-        if s['bal'] < amt: return bot.reply_to(message, "Paise nahi hain!")
-        if r['loan']['active']: return bot.reply_to(message, "Uspe pehle se karza hai.")
         
+        if s['bal'] < amt: return bot.reply_to(message, "Aapke paas itne paise nahi hain!")
+        
+        # 🔥 Naya 4000 Rs wala Limit Check
+        if r['loan']['active'] and r['loan']['amount'] >= 4000: 
+            return bot.reply_to(message, f"❌ Ispe pehle se {r['loan']['amount']} Rs ka karza hai. 4000 ki limit poori ho gayi hai sa!")
+            
         req_id = str(message.message_id)
         pending_loans[req_id] = {"lender": message.from_user.id, "borrower": r_obj.id, "amount": amt}
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("Yes", callback_data=f"ly_{req_id}"), InlineKeyboardButton("No", callback_data=f"ln_{req_id}"))
         bot.reply_to(message.reply_to_message, f"Kya aap {amt} Rs ka loan lena chahte hain?", reply_markup=markup)
-    except: bot.reply_to(message, "Format: /udhar 500")
+    except: bot.reply_to(message, "Format: /loan 500")
 
 @bot.message_handler(commands=['return'])
 def repay_cmd(message):
@@ -565,10 +569,15 @@ def callbacks(call):
             s = users[req['lender']]; r = users[req['borrower']]
             amt = req['amount']; due = amt + int(amt * 0.1)
             s['bal'] -= amt; r['bal'] += amt
-            r['loan'] = {"active": True, "lender_id": req['lender'], "amount": due, "due_time": time.time() + 86400}
+            
+            # 🔥 Naya Logic: Purane udhar mein naya jod do
+            if r['loan'].get('active'):
+                r['loan']['amount'] += due
+            else:
+                r['loan'] = {"active": True, "lender_id": req['lender'], "amount": due, "due_time": time.time() + 86400}
+                
             del pending_loans[req_id]
-            bot.edit_message_text("Loan Accepted!", call.message.chat.id, call.message.message_id)
-
+            bot.edit_message_text(f"✅ Loan Accepted! Total karza ab {r['loan']['amount']} Rs ho gaya hai.", call.message.chat.id, call.message.message_id)
     elif d.startswith("poll_"):
         if uid in poll_voters: return bot.answer_callback_query(call.id, "Pehle vote de chuke ho!")
         poll_voters.add(uid)
