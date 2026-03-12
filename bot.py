@@ -47,22 +47,27 @@ bot = telebot.TeleBot(API_TOKEN)
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
     BotCommand("bal", "Apna khaata aur level dekhein"),
-    BotCommand("toprank", "top 10 rich player of game"),
+    BotCommand("toprank", "Top 10 ameer log"),
+    BotCommand("topkills", "Top 10 Serial Killers"),
     BotCommand("daily", "Har 24 ghante ka inam"),
     BotCommand("weekly", "Har 7 din mein 2000 Rs"),
-    BotCommand("imagine", "apni pasand ka photo mangaye"),
-    BotCommand("dart", "Kismat azmayein (/dart amount)"),
-    BotCommand("shield", "500 Rs mein 24 ghante bachein (DM)"),
+    BotCommand("imagine", "Apni pasand ka photo mangaye"),
+    BotCommand("dice", "🎲 Ludo game khelein"),
+    BotCommand("spin", "🎰 Casino Slot Machine"),
+    BotCommand("dart", "🎯 Kismat azmayein (/dart amount)"),
+    BotCommand("shield", "🛡️ 500 Rs mein 24h protection"),
     BotCommand("give", "Kisi ko paise donate karein"),
     BotCommand("loan", "Loan offer karein"),
     BotCommand("return", "Udhar wapas karein"),
     BotCommand("rob", "Dusre ke paise churayein"),
     BotCommand("kill", "Shikaar karein (500 Rs inam)"),
     BotCommand("revive", "Zinda karein (700 Rs lagenge)"),
-    BotCommand("xo", "Tic-Tac-Toe khelein (/xo amount)"),
+    BotCommand("xo", "Tic-Tac-Toe khelein"),
     BotCommand("ban", "👑 Group se nikalein"),
     BotCommand("mute", "👑 Chup karayein"),
-    BotCommand("say", "👑apna message sab ko bhejo"),
+    BotCommand("say", "👑 Apna message sab ko bhejo"),
+    BotCommand("all", "👑 Group me sabko tag karein"),
+    BotCommand("detail", "👑 DM me user ki kundali dekhein"),
     BotCommand("askpoll", "👑 Daily poll bhejein")
 ])
 
@@ -86,25 +91,26 @@ def save_data():
     for uid, data in list(users.items()):
         users_db.update_one({"_id": uid}, {"$set": {"data": data}}, upsert=True)
 
-def get_level(bal):
-    if bal < 500: return "Noob 🪵"
-    elif bal < 1500: return "Bronze 🥉"
-    elif bal < 3000: return "Silver 🥈"
-    elif bal < 4000: return "Gold 🥇"
-    elif bal < 10000: return "Platinum 💎"
-    elif bal < 50000: return "Diamond 💠"
-    elif bal < 2000000: return "Heroic 🦸‍♂️"
-    else: return "GOD LEVEL 👑"
+def get_user(user_obj):
+    uid = user_obj.id
+    if uid not in users:
+        users[uid] = {
+            "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
+            "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
+            "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0},
+            "kills": 0, "history": [] 
+        }
+    else:
+        users[uid]["name"] = user_obj.first_name
+        # Purane users ke account mein bhi Kills aur History wala khata kholna
+        if "kills" not in users[uid]: users[uid]["kills"] = 0
+        if "history" not in users[uid]: users[uid]["history"] = []
+    return users[uid]
 
-def get_rank(uid):
-    # Ye saare bot users ko unke paise (bal) ke hisaab se descending order mein sort karega
-    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
-    for rank, (user_id, data) in enumerate(sorted_users, 1):
-        if user_id == uid: 
-            return rank
-    return "N/A"
-
-
+def add_history(uid, text):
+    if "history" not in users[uid]: users[uid]["history"] = []
+    users[uid]["history"].insert(0, text)
+    users[uid]["history"] = users[uid]["history"][:10] 
 
 def check_membership(uid):
     try:
@@ -123,44 +129,24 @@ def get_ai_response(user_text):
         url = "https://api.groq.com/openai/v1/chat/completions"
         
         headers = {
-            "Authodef get_user(user_obj):
-    uid = user_obj.id
-    if uid not in users:
-        users[uid] = {
-            "name": user_obj.first_name, "bal": 1000, "status": "Alive", 
-            "last_daily": 0, "last_weekly": 0, "death_time": 0, "shield_until": 0,
-            "loan": {"active": False, "lender_id": 0, "amount": 0, "due_time": 0},
-            "kills": 0, "history": [] # 👈 Ye nayi cheezein add hui hain
-        }
-    else:
-        users[uid]["name"] = user_obj.first_name
-        # Purane users ke account mein bhi Kills aur History wala khata kholna
-        if "kills" not in users[uid]: users[uid]["kills"] = 0
-        if "history" not in users[uid]: users[uid]["history"] = []
-    return users[uid]
-
-# 🔥 Naya chota function jo sabka history (kundali) save karega
-def add_history(uid, text):
-    if "history" not in users[uid]: users[uid]["history"] = []
-    users[uid]["history"].insert(0, text)
-    users[uid]["history"] = users[uid]["history"][:10] # Sirf aakhiri 10 kaand yaad rakhegarization": f"Bearer {GROQ_API_KEY}",
+            "Authorization": f"Bearer {GROQ_API_KEY}",
             "Content-Type": "application/json"
         }
         
         # Insaan banne ki training aur user ka text
         payload = {
-            "model": "llama-3.1-8b-instant", # Ye model hawa se baatein karta hai (super fast)
+            "model": "llama-3.1-8b-instant",
             "messages": [
                 {
                     "role": "system", 
-                    "content": " tera naam Daimond batch bot hai. aur tera behaviuor friendly hai. Hamesha sirf 1 ya 2 line mein chota aur Hinglish main jawab dena. kabhi jarurat ho toh hi bada msg bhejna tum bhut samajdaar ho toh msg bhi samjadari se karte ho ."
+                    "content": "tera naam Daimond batch bot hai. aur tera behaviuor friendly hai. Hamesha sirf 1 ya 2 line mein chota aur Hinglish main jawab dena. kabhi jarurat ho toh hi bada msg bhejna tum bhut samajdaar ho toh msg bhi samjadari se karte ho ."
                 },
                 {
                     "role": "user", 
                     "content": user_text
                 }
             ],
-            "max_tokens": 150 # Chote jawab ke liye token limit set ki hai
+            "max_tokens": 150 
         }
         
         # Request bhejna (Groq 1-2 second mein hi jawab de deta hai)
@@ -174,7 +160,6 @@ def add_history(uid, text):
             
     except Exception as e: 
         return "Bhai thoda network ka lafda hai, wapas bol."
-
 def background_monitor():
     while True:
         try:
@@ -489,7 +474,7 @@ def revive_cmd(message):
     msg = f"💉 **SANJEEVANI BOOTI!** 💉\n\n**{r['name']}** ne \n💖 zinda kiya **{t['name']}** ko\n\n🏆 Level: {get_level(r['bal'])}\n💸 Kharcha: 700 Rs"
     bot.reply_to(message, msg)
 
-@bot.message_handler(commands=['loan', 'loan'])
+@bot.message_handler(commands=['loan', 'udhar'])
 def loan_cmd(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
