@@ -101,6 +101,22 @@ def save_data():
     for uid, data in list(users.items()):
         users_db.update_one({"_id": uid}, {"$set": {"data": data}}, upsert=True)
 
+def get_level(bal):
+    if bal < 500: return "Noob 🪵"
+    elif bal < 1500: return "Bronze 🥉"
+    elif bal < 3000: return "Silver 🥈"
+    elif bal < 4000: return "Gold 🥇"
+    elif bal < 10000: return "Platinum 💎"
+    elif bal < 50000: return "Diamond 💠"
+    elif bal < 2000000: return "Heroic 🦸‍♂️"
+    else: return "GOD LEVEL 👑"
+
+def get_rank(uid):
+    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
+    for rank, (user_id, data) in enumerate(sorted_users, 1):
+        if user_id == uid: return rank
+    return "N/A"
+
 def get_user(user_obj):
     uid = user_obj.id
     if uid not in users:
@@ -206,7 +222,7 @@ def start_cmd(message):
         return
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("Join Group", url="https://t.me/Daimondbatch"))
-    bot.reply_to(message, "👑 Khamma Ghani! Jodhpur King Bot mein swagat hai.", reply_markup=markup)
+    bot.reply_to(message, "👑 hello daimon batch Bot mein swagat hai.", reply_markup=markup)
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -219,26 +235,22 @@ def gift_cmd(message):
     except: 
         bot.reply_to(message, "❌ Sahi Format: /gift 5000")
 
-
-            
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
-    if not users:
-        return bot.reply_to(message, "Abhi tak koi user nahi hai sa!")
-        
-    # Saare users ko paise ke hisaab se sort karna
+    if not users: return bot.reply_to(message, "Abhi tak koi user nahi hai sa!")
     sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
-    
-    # Sirf Top 10 nikalna
     top_10 = sorted_users[:10]
     
     text = "🏆 **GLOBAL TOP 10 AMEER LOG** 🏆\n\n"
-    
-    # Ek-ek karke list banana
     for i, (uid, data) in enumerate(top_10):
-        # Topper ko Crown aur Gold medal
-        if i == 0:
-            medal = "👑 🥇"
+        if i == 0: medal = "👑 🥇"
+        elif i == 1: medal = "🥈"
+        elif i == 2: medal = "🥉"
+        else: medal = "🏅" 
+        text += f"{medal} **{data['name']}** - {data['bal']} Rs\n"
+        
+    text += "\n🔥 Khelte raho aur apna naam upar lao sa!"
+    bot.reply_to(message, text)
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
@@ -558,16 +570,11 @@ def xo_start(message):
         bot.reply_to(message, f"XO Game {amt} Rs ka! P2 join kare:", reply_markup=markup)
     except: bot.reply_to(message, "Format: /xo 100")
 
-def xo_markup(gid):
-    b = xo_games[gid]['board']
-    m = InlineKeyboardMarkup(row_width=3)
-    btns = [InlineKeyboardButton(b[i] if b[i] != "-" else " ", callback@bot.message_handler(commands=['daily', 'weekly'])
+@bot.message_handler(commands=['daily', 'weekly'])
 def claims(message):
     u = get_user(message.from_user)
     cmd = message.text.split()[0].lower()
     t = time.time()
-    
-    # 👑 VIP Don check
     multiplier = 2 if "👑 Don Taj" in u.get('inventory', []) else 1
     vip_text = "\n👑 VIP Don Double Bonus!" if multiplier == 2 else ""
     
@@ -580,12 +587,17 @@ def claims(message):
         if t - u['last_weekly'] > 604800: 
             amt = 2000 * multiplier
             u['bal'] += amt; u['last_weekly'] = t; bot.reply_to(message, f"🎁 {amt} rs mile!{vip_text}")
-        else: bot.reply_to(message, "Agle hafte aana!")_data=f"xo_m_{gid}_{i}") for i in range(9)]
+        else: bot.reply_to(message, "Agle hafte aana!")
+
+def xo_markup(gid):
+    b = xo_games[gid]['board']
+    m = InlineKeyboardMarkup(row_width=3)
+    btns = [InlineKeyboardButton(b[i] if b[i] != "-" else " ", callback_data=f"xo_m_{gid}_{i}") for i in range(9)]
     m.add(*btns)
     return m
 
 def check_win(b):
-    for w in [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]:
+    for w in [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]:                                                                                                          
         if b[w[0]] != "-" and b[w[0]] == b[w[1]] == b[w[2]]: return b[w[0]]
     if "-" not in b: return "Tie"
     return None
@@ -755,49 +767,19 @@ def callbacks(call):
         usr = get_user(u)
         if d == "poll_y": usr['bal'] += 100; bot.answer_callback_query(call.id, "+100 Rs mile!")
         else: usr['bal'] -= 100; bot.answer_callback_query(call.id, "-100 Rs cut!")
-
-    elif d.startswith("say_"):
+elif d.startswith("say_"):
         if uid != ADMIN_ID: return bot.answer_callback_query(call.id, "Tu Admin thodi hai!")
         if uid not in pending_says: return bot.answer_callback_query(call.id, "Message purana ho gaya, wapas /say karo.")
-        
         target = d.replace("say_", "")
         data = pending_says[uid]
-
-    elif d.startswith("buy_"):
-        item_id = d.replace("buy_", "")
-        if item_id not in SHOP_ITEMS: return bot.answer_callback_query(call.id, "Ye item dukaan mein nahi hai!")
-        
-        item = SHOP_ITEMS[item_id]
-        usr = get_user(u)
-        
-        if usr['bal'] < item['price']:
-            return bot.answer_callback_query(call.id, f"Garib! {item['price']} Rs chahiye iske liye.", show_alert=True)
-            
-        if item['name'] in usr.get('inventory', []):
-            if item_id != "jacket":
-                return bot.answer_callback_query(call.id, "Ye item pehle se hai tere paas! Ek hi kafi hai.", show_alert=True)
-            elif usr['inventory'].count(item['name']) >= 3:
-                return bot.answer_callback_query(call.id, "Bhai max 3 jacket hi pehan sakta hai!", show_alert=True)
-        
-        usr['bal'] -= item['price']
-        usr["inventory"].append(item['name'])
-        bot.answer_callback_query(call.id, f"🎉 {item['name']} khareed liya!", show_alert=True)
-        bot.edit_message_text(f"✅ Wah Seth ji! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
         def send_to_chat(chat_id):
-            # Agar photo/video par reply tha, toh exact waise hi copy karega bina "Forwarded" tag ke
-            if data['type'] == 'copy':
-                bot.copy_message(chat_id, call.message.chat.id, data['content'])
-            # Agar direct text likha tha
-            else:
-                bot.send_message(chat_id, data['content'])
-
+            if data['type'] == 'copy': bot.copy_message(chat_id, call.message.chat.id, data['content'])
+            else: bot.send_message(chat_id, data['content'])
         try:
             if target == "all":
                 count = 0
                 for gid in list(active_groups):
-                    try:
-                        send_to_chat(gid)
-                        count += 1
+                    try: send_to_chat(gid); count += 1
                     except: pass
                 bot.edit_message_text(f"✅ Boss! Message ek sath {count} groups mein blast kar diya gaya!", call.message.chat.id, call.message.message_id)
             else:
@@ -805,12 +787,23 @@ def callbacks(call):
                 send_to_chat(gid)
                 chat_info = bot.get_chat(gid)
                 bot.edit_message_text(f"✅ Message '{chat_info.title}' mein bhej diya sa!", call.message.chat.id, call.message.message_id)
-        except Exception as e:
-            bot.answer_callback_query(call.id, "Bhejne mein error aayi!")
-            
-        # Message bhejne ke baad data delete kar do
+        except Exception as e: bot.answer_callback_query(call.id, "Bhejne mein error aayi!")
         del pending_says[uid]
-        
+
+    elif d.startswith("buy_"):
+        item_id = d.replace("buy_", "")
+        if item_id not in SHOP_ITEMS: return bot.answer_callback_query(call.id, "Ye item dukaan mein nahi hai!")
+        item = SHOP_ITEMS[item_id]
+        usr = get_user(u)
+        if usr['bal'] < item['price']: return bot.answer_callback_query(call.id, f"Garib! {item['price']} Rs chahiye.", show_alert=True)
+        if item['name'] in usr.get('inventory', []):
+            if item_id != "jacket": return bot.answer_callback_query(call.id, "Ye item pehle se hai! Ek hi kafi hai.", show_alert=True)
+            elif usr['inventory'].count(item['name']) >= 3: return bot.answer_callback_query(call.id, "Max 3 jacket hi pehan sakta hai!", show_alert=True)
+        usr['bal'] -= item['price']
+        usr["inventory"].append(item['name'])
+        bot.answer_callback_query(call.id, f"🎉 {item['name']} khareed liya!", show_alert=True)
+        bot.edit_message_text(f"✅ Wah Seth ji! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
+
     elif d.startswith("xo_join_"):
         gid = d.split("_")[2]
         if gid not in xo_games: return bot.answer_callback_query(call.id, "Game khatam!")
@@ -852,8 +845,7 @@ def callbacks(call):
             g['turn'] = g['p2'] if uid == g['p1'] else g['p1']
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
-
-@bot.message_handler(func=lambda m: True)
+   
 def handle_all(message):
     is_prv = message.chat.type == 'private'
     if not is_prv: active_groups.add(message.chat.id)
