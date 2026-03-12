@@ -308,19 +308,26 @@ def generate_image(message):
             bot.reply_to(message, "❌ Server thoda aalsi ho raha hai sa! Ek baar wapas likho.")
     except Exception as e:
         bot.reply_to(message, "❌ Photo aane mein dikkat hui. Wapas try karein sa!")
-        
+
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
         amt = int(message.text.split()[1])
-        s = get_user(message.from_user)
-        r = get_user(message.reply_to_message.from_user)
+        s_obj = message.from_user
+        r_obj = message.reply_to_message.from_user
+        s = get_user(s_obj)
+        r = get_user(r_obj)
+        
         if s['bal'] < amt: return bot.reply_to(message, "Paise nahi hain!")
+        
         s['bal'] -= amt
         r['bal'] += amt
-        bot.reply_to(message, f"✅ {amt} Rs donate kar diye!")
-    except: bot.reply_to(message, "Format: /give 100")
+        
+        # 🔥 VIP Legend Message
+        msg = f"💸 **MAHA-DAAN!** 💸\n\n**{s['name']}** ne \n🎁 donate kiye **{r['name']}** ko\n\n🏆 Level: {get_level(s['bal'])}\n💰 Rakam: {amt} Rs"
+        bot.reply_to(message, msg)
+    except: bot.reply_to(message, "Format: /give 100")    
 
 @bot.message_handler(commands=['dance'])
 def dance_cmd(message):
@@ -381,6 +388,37 @@ def play_dice(message):
     else:
         u['bal'] -= amt 
         bot.reply_to(dice_msg, f"❌ **HAAR GAYE! (Score: {value})**\nLudo mein kismat kharab nikli sa!\nAap **{amt} Rs** haar gaye. 💸")
+
+@bot.message_handler(commands=['spin', 'slot'])
+def play_slot(message):
+    u = get_user(message.from_user)
+    if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde casino nahi aate sa!")
+    
+    try: amt = int(message.text.split()[1])
+    except: return bot.reply_to(message, "❌ Sahi format: /spin 100")
+        
+    if u['bal'] < amt: return bot.reply_to(message, "❌ Itne paise nahi hain aapke paas!")
+        
+    # Pehle bet kaat lo
+    u['bal'] -= amt 
+    
+    # Asli slot machine animation
+    spin_msg = bot.send_dice(message.chat.id, emoji='🎰')
+    time.sleep(2.5) # Machine ghumne ka wait
+    
+    value = spin_msg.dice.value
+    
+    # Telegram 🎰 values: 64 = 777 (Jackpot), 1 = bar, 22 = grape, 43 = lemon
+    if value == 64:
+        win_amt = amt * 10
+        u['bal'] += win_amt
+        bot.reply_to(spin_msg, f"🎰 **MEGA JACKPOT (777)!!!** 🎰\nKismat phat ke flower ho gayi sa! Paisa 10 GUNA!\nAap **{win_amt} Rs** jeet gaye! 🔥💰")
+    elif value in [1, 22, 43]:
+        win_amt = amt * 3
+        u['bal'] += win_amt
+        bot.reply_to(spin_msg, f"🎰 **BIG WIN!**\nTeeno line match ho gayi! Paisa 3 GUNA!\nAap **{win_amt} Rs** jeet gaye! 💸")
+    else:
+        bot.reply_to(spin_msg, f"❌ **HAAR GAYE!**\nMachine ne dhokha de diya sa. Aapka bet doob gaya. 😢")
 
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
@@ -565,7 +603,7 @@ def ask_poll(message):
     markup.add(InlineKeyboardButton("Yes", callback_data="poll_y"), InlineKeyboardButton("No", callback_data="poll_n"))
     bot.send_message(message.chat.id, "Kya Daimond batch bot accha hai?", reply_markup=markup)
 
-    @bot.message_handler(commands=['topkills'])
+@bot.message_handler(commands=['topkills'])
 def top_killers(message):
     if not users: return bot.reply_to(message, "Abhi tak koi data nahi hai sa!")
     
