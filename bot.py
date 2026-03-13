@@ -217,12 +217,28 @@ def background_monitor():
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
     get_user(message.from_user)
-    if message.text == '/start shield':
+    
+    # Bot ko yaad dilana ki wo is group me active hai
+    if message.chat.type != 'private':
+        active_groups.add(message.chat.id)
+        
+    # Agar koi DM me shield lene aaya hai
+    if 'shield' in message.text:
         buy_shield(message)
         return
+        
+    # VIP Button tayyar karna
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("Join Group", url="https://t.me/Daimondbatch"))
-    bot.reply_to(message, "👑 hello daimon batch Bot mein swagat hai.", reply_markup=markup)
+    markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
+    
+    # DM (Akele) aur Group ke liye alag-alag VIP message
+    if message.chat.type == 'private':
+        text = "👑 **welcome my Dear!**\nDaimond Batch Bot mein aapka swagat hai .\n\nNeeche button daba kar hamara official group join karein 👇"
+        bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
+    else:
+        text = f"👑 **Daimond Batch mein swagat hai {message.from_user.first_name}!**\n\nAap toh pehle se hamare khaas aadmi ho. Game khelo aur balance badhao!\n(Apne dosto ko lana ho toh neeche wala button bhejo aur khud bhi join ho jao group main 👇)"
+        bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
+
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -881,4 +897,5 @@ if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     bot.infinity_polling()
+
 
