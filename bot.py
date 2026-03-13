@@ -79,6 +79,7 @@ xo_games = {}
 poll_voters = set()
 pending_says = {}
 disabled_cmds = set() # 👈 Naya switch board
+current_dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif" # Default GIF
 
 # 🛒 CHOR BAZAAR KA SAMAAN
 SHOP_ITEMS = {
@@ -96,6 +97,7 @@ try:
     for doc in users_db.find():
         if doc["_id"] == "bot_settings":
             disabled_cmds = set(doc.get("disabled_cmds", []))
+            if "dance_gif" in doc: current_dance_gif = doc["dance_gif"]
         else:
             users[doc["_id"]] = doc["data"]
     print(f"Loaded {len(users)} users.")
@@ -107,6 +109,7 @@ def save_data():
     for uid, data in list(users.items()):
         users_db.update_one({"_id": uid}, {"$set": {"data": data}}, upsert=True)
     # ⚙️ Settings save karna
+    global current_dance_gif
     users_db.update_one({"_id": "bot_settings"}, {"$set": {"disabled_cmds": list(disabled_cmds)}}, upsert=True)
 
 def get_level(bal):
@@ -325,25 +328,36 @@ def buy_shield(message):
 @bot.message_handler(commands=['imagine', 'photo'])
 def generate_image(message):
     if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-    if len(message.text.split()) == 1:
-        return bot.reply_to(message, "🎨 Photo banane ke liye aise likho:\n`/imagine [kuch bhi likho]`", parse_mode="Markdown")
     
-    bot.send_chat_action(message.chat.id, 'upload_photo')
     prompt = message.text.replace("/imagine", "").replace("/photo", "").strip()
-    safe_prompt = urllib.parse.quote(prompt)
+    if not prompt:
+        return bot.reply_to(message, "🎨 **Aise likho:**\n`/imagine ek udta hua ghoda`", parse_mode="Markdown")
     
-    # Naya advance tarika (Direct image download)
-    seed = random.randint(1, 10000)
+    # ⏳ User ko wait karne ka message
+    wait_msg = bot.reply_to(message, "⏳ *Jadoo ho raha hai... 10-15 second wait karo!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    safe_prompt = urllib.parse.quote(prompt)
+    seed = random.randint(1, 1000000)
+    
+    # Naya aur fast API link
     image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&seed={seed}"
     
     try:
-        res = requests.get(image_url, timeout=40)
-        if res.status_code == 200:
-            bot.send_photo(message.chat.id, res.content, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
-        else:
-            bot.reply_to(message, "❌ Server thoda aalsi ho raha hai sa! Ek baar wapas likho.")
+        # Telegram ko direct URL de do, wo khud download kar lega (100% fast aur safe)
+        bot.send_photo(message.chat.id, photo=image_url, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
+        bot.delete_message(message.chat.id, wait_msg.message_id) # Wait wala message hata do
     except Exception as e:
-        bot.reply_to(message, "❌ Photo aane mein dikkat hui. Wapas try karein sa!")
+        # Agar URL se fail ho jaye toh purana Jugaad (Download karke bhejna)
+        try:
+            res = requests.get(image_url, timeout=30)
+            if res.status_code == 200:
+                bot.send_photo(message.chat.id, photo=res.content, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
+                bot.delete_message(message.chat.id, wait_msg.message_id)
+            else:
+                bot.edit_message_text("❌ Server thoda aalsi ho gaya hai. Ek baar wapas likho sa!", message.chat.id, wait_msg.message_id)
+        except Exception as e2:
+            bot.edit_message_text("❌ Photo banne mein thodi dikkat hui. Prompt thoda chota ya alag likh kar dekho sa!", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
@@ -369,9 +383,13 @@ def give_money(message):
 @bot.message_handler(commands=['dance'])
 def dance_cmd(message):
     if "dance" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-    dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif"
-    bot.send_animation(message.chat.id, dance_gif, caption="🕺 **Balle Balle! Party Time!** 💃")
     
+    try:
+        # Ab ye purane link ki jagah aapka set kiya hua GIF (current_dance_gif) bhejega
+        bot.send_animation(message.chat.id, current_dance_gif, caption="🕺 **Balle Balle! Party Time!** 💃", parse_mode="Markdown")
+    except Exception as e:
+        bot.reply_to(message, "🕺 **Balle Balle! Party Time!** 💃\n*(GIF load nahi hua sa!)*", parse_mode="Markdown")
+
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
     if "dart" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
@@ -381,6 +399,7 @@ def play_dart(message):
     
     try:
         amt = int(message.text.split()[1])
+        if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh !")
     except:
         return bot.reply_to(message, "❌ Sahi format: /dart 100")
         
@@ -422,7 +441,9 @@ def play_dice(message):
     u = get_user(message.from_user)
     if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde ludo nahi khelte sa!")
     
-    try: amt = int(message.text.split()[1])
+    try:
+      amt = int(message.text.split()[1])
+      if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh sa!")
     except: return bot.reply_to(message, "❌ Sahi format: /dice 100")
         
     if u['bal'] < amt: return bot.reply_to(message, "❌ Itne paise nahi hain aapke paas!")
@@ -447,7 +468,10 @@ def play_slot(message):
     u = get_user(message.from_user)
     if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde casino nahi aate sa!")
     
-    try: amt = int(message.text.split()[1])
+    try: 
+      amt = int(message.text.split()[1])
+      if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh sa!")
+      
     except: return bot.reply_to(message, "❌ Sahi format: /spin 100")
         
     if u['bal'] < amt: return bot.reply_to(message, "❌ Itne paise nahi hain aapke paas!")
@@ -608,6 +632,7 @@ def xo_start(message):
     if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     try:
         amt = int(message.text.split()[1])
+        if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh sa!")
         u = get_user(message.from_user)
         if u['bal'] < amt: return bot.reply_to(message, "Paise kam hain!")
         gid = str(message.message_id)
@@ -670,6 +695,20 @@ def activate_cmd(message):
         save_data()
         bot.reply_to(message, f"✅ **Command Activated!**\nBoss, ab sab `{cmd}` use kar sakte hain.")
     except: bot.reply_to(message, "❌ Sahi format: /activate rob")
+
+@bot.message_handler(commands=['setdance'])
+def set_dance_gif(message):
+    global current_dance_gif
+    if message.from_user.id != ADMIN_ID: return
+    
+    # Check karna ki reply GIF (animation) par kiya hai ya nahi
+    if not message.reply_to_message or not message.reply_to_message.animation:
+        return bot.reply_to(message, "❌ Boss, kisi mast GIF par reply karke `/setdance` likho!")
+    
+    # Telegram ka direct File ID save karna (Ye kabhi expire nahi hota!)
+    current_dance_gif = message.reply_to_message.animation.file_id
+    save_data()
+    bot.reply_to(message, "✅ **Balle Balle!** Boss, Naya Dance GIF set ho gaya sa! Ab sabko yahi dikhega.")
 
 @bot.message_handler(commands=['say'])
 def admin_say_cmd(message):
