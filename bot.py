@@ -238,19 +238,26 @@ def gift_cmd(message):
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
     if not users: return bot.reply_to(message, "Abhi tak koi user nahi hai sa!")
-    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
-    top_10 = sorted_users[:10]
     
-    text = "🏆 **GLOBAL TOP 10 AMEER LOG** 🏆\n\n"
-    for i, (uid, data) in enumerate(top_10):
-        if i == 0: medal = "👑 🥇"
+    # Sort karke exactly Top 10 nikalna
+    sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)[:10]
+    
+    # Stylish Font (Unicode) aur Header
+    text = "🏆 𝗚𝗟𝗢𝗕𝗔𝗟 𝗧𝗢𝗣 𝟭𝟬 𝗥𝗜𝗖𝗛𝗘𝗦𝗧 🏆\n━━━━━━━━━━━━━━━━━━━\n"
+    
+    for i, (uid, data) in enumerate(sorted_users):
+        if i == 0: medal = "🥇"
         elif i == 1: medal = "🥈"
         elif i == 2: medal = "🥉"
-        else: medal = "🏅" 
-        text += f"{medal} **{data['name']}** - {data['bal']} Rs\n"
+        else: medal = f"🏅 {i+1}."
+            
+        # *Name* se Bold hoga, aur `Amount` se text ka alag (Monospace) design aayega
+        text += f"{medal} *{data['name']}* ➾ 💰 `{data['bal']} Rs`\n"
         
-    text += "\n🔥 Khelte raho aur apna naam upar lao sa!"
-    bot.reply_to(message, text)
+    text += "━━━━━━━━━━━━━━━━━━━\n💡 *Tip:* `/rob` aur `/daily` se apni rank badhayein!"
+    
+    # parse_mode="Markdown" lagane se font styling apply hogi
+    bot.reply_to(message, text, parse_mode="Markdown")
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
@@ -265,9 +272,9 @@ def check_bal(message):
     
     # 🎒 Inventory nikalna
     inv = u.get('inventory', [])
-    inv_text = ", ".join(inv) if inv else "Kuch nahi (Nanga/Garib)"
+    inv_text = ", ".join(inv) if inv else "Kuch nahi (KHALI)"
     
-    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n🎒 **Samaan:** {inv_text}\n❤️ Status: {u['status']}")
+    bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n🎒 **ITEMS:** {inv_text}\n❤️ Status: {u['status']}")
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
@@ -368,7 +375,7 @@ def play_dart(message):
 
 @bot.message_handler(commands=['shop', 'bazaar'])
 def open_shop(message):
-    text = "🛒 **CHOR BAZAAR MEIN SWAGAT HAI** 🛒\n\nYahan paise phek tamasha dekh! Apni aukaat ke hisaab se item khareedo:\n\n"
+    text = "🛒 **DAIMOND BATCH BAZAAR MEIN SWAGAT HAI** 🛒\n\nYahan paise phek tamasha dekh! Apne balance ke hisaab se item khareedo:\n\n"
     markup = InlineKeyboardMarkup(row_width=1)
     
     for k, v in SHOP_ITEMS.items():
@@ -648,18 +655,25 @@ def ask_poll(message):
 def top_killers(message):
     if not users: return bot.reply_to(message, "Abhi tak koi data nahi hai sa!")
     
-    # Kills ke hisaab se sabko sort karna
     sorted_users = sorted(users.items(), key=lambda x: x[1].get('kills', 0), reverse=True)
-    top_10 = sorted_users[:10]
+    # Sirf unko dikhayega jinhone kam se kam 1 khoon kiya ho (Top 10 limit)
+    killers = [(uid, data) for uid, data in sorted_users if data.get('kills', 0) > 0][:10]
     
-    text = "🔪 **GLOBAL TOP 10 SERIAL KILLERS** 🔪\n\n"
-    for i, (uid, data) in enumerate(top_10):
-        if data.get('kills', 0) > 0:
-            text += f"#{i+1} **{data['name']}** - {data.get('kills', 0)} Kills\n"
+    if not killers:
+        return bot.reply_to(message, "🕊️ *SAB SHAREEF HAIN!*\nAbhi tak is group mein kisi ka khoon nahi hua hai.", parse_mode="Markdown")
+        
+    text = "🩸 𝗚𝗟𝗢𝗕𝗔𝗟 𝗧𝗢𝗣 𝟭𝟬 𝗞𝗜𝗟𝗟𝗘𝗥𝗦 🩸\n━━━━━━━━━━━━━━━━━━━\n"
+    for i, (uid, data) in enumerate(killers):
+        if i == 0: medal = "🥇"
+        elif i == 1: medal = "🥈"
+        elif i == 2: medal = "🥉"
+        else: medal = f"💀 {i+1}."
             
-    if text == "🔪 **GLOBAL TOP 10 SERIAL KILLERS** 🔪\n\n":
-        text = "Abhi tak is group mein kisi ka khoon nahi hua hai sa! Sab shareef hain."
-    bot.reply_to(message, text)
+        # Stylish bold aur monospace text
+        text += f"{medal} *{data['name']}* ➾ 🔪 `{data.get('kills', 0)} Kills`\n"
+            
+    text += "━━━━━━━━━━━━━━━━━━━\n💡 *Tip:* `/kill` command se dushmano ko khatam karein!"
+    bot.reply_to(message, text, parse_mode="Markdown")
 
 @bot.message_handler(commands=['addkill'])
 def add_kill_cmd(message):
@@ -802,7 +816,7 @@ def callbacks(call):
         usr['bal'] -= item['price']
         usr["inventory"].append(item['name'])
         bot.answer_callback_query(call.id, f"🎉 {item['name']} khareed liya!", show_alert=True)
-        bot.edit_message_text(f"✅ Wah Seth ji! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
+        bot.edit_message_text(f"✅ Wah ! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
 
     elif d.startswith("xo_join_"):
         gid = d.split("_")[2]
@@ -867,3 +881,4 @@ if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     bot.infinity_polling()
+
