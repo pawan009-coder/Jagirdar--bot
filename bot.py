@@ -78,6 +78,8 @@ pending_loans = {}
 xo_games = {}
 poll_voters = set()
 pending_says = {}
+disabled_cmds = set() # 👈 Naya switch board
+
 # 🛒 CHOR BAZAAR KA SAMAAN
 SHOP_ITEMS = {
     "chakku": {"name": "🔪 Chakku", "price": 1500, "desc": "Rob karne par 200 Rs extra milenge."},
@@ -87,11 +89,15 @@ SHOP_ITEMS = {
     "ak47": {"name": "💣 AK-47", "price": 100000, "desc": "Kill ka inaam seedha 5000 Rs!"},
     "don": {"name": "👑 Don Taj", "price": 500000, "desc": "VIP Status aur Daily/Weekly inam DOUBLE!"}
 }
+
 # Database se purana data nikalna
 print("Loading data from database...")
 try:
     for doc in users_db.find():
-        users[doc["_id"]] = doc["data"]
+        if doc["_id"] == "bot_settings":
+            disabled_cmds = set(doc.get("disabled_cmds", []))
+        else:
+            users[doc["_id"]] = doc["data"]
     print(f"Loaded {len(users)} users.")
 except:
     print("Abhi naya database hai ya error aaya.")
@@ -100,6 +106,8 @@ except:
 def save_data():
     for uid, data in list(users.items()):
         users_db.update_one({"_id": uid}, {"$set": {"data": data}}, upsert=True)
+    # ⚙️ Settings save karna
+    users_db.update_one({"_id": "bot_settings"}, {"$set": {"disabled_cmds": list(disabled_cmds)}}, upsert=True)
 
 def get_level(bal):
     if bal < 500: return "Noob 🪵"
@@ -253,6 +261,7 @@ def gift_cmd(message):
 
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
+    if "toprank" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not users: return bot.reply_to(message, "Abhi tak koi user nahi hai sa!")
     
     # Sort karke exactly Top 10 nikalna
@@ -277,6 +286,7 @@ def top_richest(message):
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
+    if "bal" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     target_obj = message.reply_to_message.from_user if message.reply_to_message else message.from_user
     u = get_user(target_obj)
     
@@ -294,6 +304,7 @@ def check_bal(message):
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
+    if "shield" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     # Agar Admin shield command lagata hai
     if message.from_user.id == ADMIN_ID:
         return bot.reply_to(message, "👑 **Boss!** Aap Admin ho, aapki Shield hamesha ke liye UNLIMITED hai. Aapko kharidne ki koi zaroorat nahi!")
@@ -313,6 +324,7 @@ def buy_shield(message):
 
 @bot.message_handler(commands=['imagine', 'photo'])
 def generate_image(message):
+    if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if len(message.text.split()) == 1:
         return bot.reply_to(message, "🎨 Photo banane ke liye aise likho:\n`/imagine [kuch bhi likho]`", parse_mode="Markdown")
     
@@ -335,6 +347,7 @@ def generate_image(message):
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
+    if "give" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
         amt = int(message.text.split()[1])
@@ -355,11 +368,13 @@ def give_money(message):
 
 @bot.message_handler(commands=['dance'])
 def dance_cmd(message):
+    if "dance" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif"
     bot.send_animation(message.chat.id, dance_gif, caption="🕺 **Balle Balle! Party Time!** 💃")
     
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
+    if "dart" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     u = get_user(message.from_user)
     if u['status'] == "Dead": 
         return bot.reply_to(message, "☠️ Murde nahi khelte sa!")
@@ -391,6 +406,7 @@ def play_dart(message):
 
 @bot.message_handler(commands=['shop', 'bazaar'])
 def open_shop(message):
+    if "shop" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     text = "🛒 **DAIMOND BATCH BAZAAR MEIN SWAGAT HAI** 🛒\n\nYahan paise phek tamasha dekh! Apne balance ke hisaab se item khareedo:\n\n"
     markup = InlineKeyboardMarkup(row_width=1)
     
@@ -402,6 +418,7 @@ def open_shop(message):
     
 @bot.message_handler(commands=['dice'])
 def play_dice(message):
+    if "dice" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     u = get_user(message.from_user)
     if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde ludo nahi khelte sa!")
     
@@ -426,6 +443,7 @@ def play_dice(message):
 
 @bot.message_handler(commands=['spin', 'slot'])
 def play_slot(message):
+    if "spin" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     u = get_user(message.from_user)
     if u['status'] == "Dead": return bot.reply_to(message, "☠️ Murde casino nahi aate sa!")
     
@@ -457,6 +475,7 @@ def play_slot(message):
 
 @bot.message_handler(commands=['rob'])
 def rob_cmd(message):
+    if "rob" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho: /rob 1000")
     try: loot_amt = int(message.text.split()[1])
     except: return bot.reply_to(message, "Sahi format: /rob 1000")
@@ -492,6 +511,7 @@ def rob_cmd(message):
 
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
+    if "kill" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke kill likho.")
     r_obj = message.from_user
     t_obj = message.reply_to_message.from_user
@@ -531,6 +551,7 @@ def kill_cmd(message):
 
 @bot.message_handler(commands=['revive'])
 def revive_cmd(message):
+    if "revive" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke revive likho.")
     r = get_user(message.from_user)
     t = get_user(message.reply_to_message.from_user)
@@ -546,6 +567,7 @@ def revive_cmd(message):
 
 @bot.message_handler(commands=['loan', 'udhar'])
 def loan_cmd(message):
+    if "loan" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     if not message.reply_to_message: return bot.reply_to(message, "Reply karke amount likho.")
     try:
         amt = int(message.text.split()[1])
@@ -568,6 +590,7 @@ def loan_cmd(message):
 
 @bot.message_handler(commands=['return'])
 def repay_cmd(message):
+    if "return" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     u = get_user(message.from_user)
     if not u['loan']['active']: return bot.reply_to(message, "Koi udhar nahi hai.")
     due = u['loan']['amount']
@@ -582,6 +605,7 @@ def repay_cmd(message):
 
 @bot.message_handler(commands=['xo'])
 def xo_start(message):
+    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     try:
         amt = int(message.text.split()[1])
         u = get_user(message.from_user)
@@ -595,6 +619,8 @@ def xo_start(message):
 
 @bot.message_handler(commands=['daily', 'weekly'])
 def claims(message):
+    cmd_name = message.text.split()[0].lower().replace("/", "")
+    if cmd_name in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     u = get_user(message.from_user)
     cmd = message.text.split()[0].lower()
     t = time.time()
@@ -624,6 +650,26 @@ def check_win(b):
         if b[w[0]] != "-" and b[w[0]] == b[w[1]] == b[w[2]]: return b[w[0]]
     if "-" not in b: return "Tie"
     return None
+
+@bot.message_handler(commands=['deactivate'])
+def deactivate_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    try:
+        cmd = message.text.split()[1].lower().replace("/", "")
+        disabled_cmds.add(cmd)
+        save_data()
+        bot.reply_to(message, f"🚫 **Command Disabled!**\nBoss, ab koi bhi `{cmd}` use nahi kar payega.")
+    except: bot.reply_to(message, "❌ Sahi format: /deactivate rob ya /deactivate ai")
+
+@bot.message_handler(commands=['activate'])
+def activate_cmd(message):
+    if message.from_user.id != ADMIN_ID: return
+    try:
+        cmd = message.text.split()[1].lower().replace("/", "")
+        if cmd in disabled_cmds: disabled_cmds.remove(cmd)
+        save_data()
+        bot.reply_to(message, f"✅ **Command Activated!**\nBoss, ab sab `{cmd}` use kar sakte hain.")
+    except: bot.reply_to(message, "❌ Sahi format: /activate rob")
 
 @bot.message_handler(commands=['say'])
 def admin_say_cmd(message):
@@ -875,9 +921,11 @@ def callbacks(call):
             g['turn'] = g['p2'] if uid == g['p1'] else g['p1']
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
-
-@bot.message_handler(func=lambda m: True)   
+@bot.message_handler(func=lambda m: True)
 def handle_all(message):
+    # 🔥 AI ka switch (Agar Admin ne band kiya toh AI kuch nahi bolega)
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return 
+    
     is_prv = message.chat.type == 'private'
     if not is_prv: active_groups.add(message.chat.id)
     uid = message.from_user.id
@@ -897,5 +945,3 @@ if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     bot.infinity_polling()
-
-
