@@ -960,6 +960,7 @@ def callbacks(call):
             g['turn'] = g['p2'] if uid == g['p1'] else g['p1']
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
+
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
     # 🔥 AI ka switch (Agar Admin ne band kiya toh AI kuch nahi bolega)
@@ -975,11 +976,15 @@ def handle_all(message):
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
     if is_prv or is_men or is_rep:
-        if not is_prv and not check_membership(uid): return bot.reply_to(message, "Pehle group join karo sa!")
+        # 🚨 YAHAN NAYA VIP BUTTON LAGA DIYA HAI 🚨
+        if not is_prv and not check_membership(uid):
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
+            return bot.reply_to(message, "⚠️ ** Bhai!**\n hamara official group join karo . Neeche button dabao 👇", reply_markup=markup, parse_mode="Markdown")
+            
         bot.send_chat_action(message.chat.id, 'typing')
         clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
         if clean: bot.reply_to(message, get_ai_response(clean))
-
 if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
