@@ -625,7 +625,51 @@ def repay_cmd(message):
     u['loan']['active'] = False
     bot.reply_to(message, "✅ Udhar chukta hua!")
 
+# 📜 GRAND LEGEND FEATURE: REALISTIC PAPER
+FONT_MAPPING = {
+    "1": "font1", "2": "font2", "3": "font3", "4": "font4", "5": "font5",
+    "6": "font6", "7": "font7", "8": "font8", "9": "font1", "10": "font2"
+}
 
+@bot.message_handler(commands=['paper'])
+def generate_paper(message):
+    # Lock Check
+    if "paper" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    
+    parts = message.text.split(maxsplit=2)
+    user_text = ""
+    style = "font1" # Default
+    
+    # Text nikalna (Reply se ya Direct)
+    if message.reply_to_message and message.reply_to_message.text:
+        user_text = message.reply_to_message.text
+        if len(parts) > 1 and parts[1].isdigit():
+            style = FONT_MAPPING.get(parts[1], "font1")
+    else:
+        if len(parts) > 1:
+            if parts[1].isdigit(): 
+                style = FONT_MAPPING.get(parts[1], "font1")
+                if len(parts) > 2: user_text = parts[2]
+            else:
+                user_text = message.text.replace("/paper", "").strip()
+
+    if not user_text:
+        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper text` ya `/paper 3 text`\n(Ya kisi message par reply karke `/paper 2` likho)", parse_mode="Markdown")
+
+    wait_msg = bot.reply_to(message, "⏳ *Kagaz pe blue ink se likha ja raha hai, wait karo sa...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    safe_text = urllib.parse.quote(user_text)
+    
+    # 🔗 API Call
+    api_url = f"https://text-to-handwriting-api.vercel.app/api?text={safe_text}&font={style}&color=blue&paperType=lined"
+    
+    try:
+        bot.send_photo(message.chat.id, photo=api_url, caption=f"📝 **Daimond Batch Official Document!**\n🖋️ Style: {style.replace('font', '')}")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        bot.edit_message_text("❌ Kagaz aur kalam khatam ho gaye sa! API server thoda thak gaya hai.", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['xo'])
 def xo_start(message):
