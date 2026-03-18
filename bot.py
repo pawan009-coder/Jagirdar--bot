@@ -832,22 +832,62 @@ def tag_all(message):
     
 @bot.message_handler(commands=['ban', 'unban', 'mute', 'unmute', 'pin'])
 def rose_features(message):
-    if not check_membership(message.from_user.id): return
-    member = bot.get_chat_member(message.chat.id, message.from_user.id)
-    if member.status not in ['administrator', 'creator']: return
-    cmd = message.text.split()[0].lower()
-    if cmd == '/pin' and message.reply_to_message:
-        bot.pin_chat_message(message.chat.id, message.reply_to_message.message_id)
-        bot.reply_to(message, "Message pinned!")
-        return
-    if not message.reply_to_message: return bot.reply_to(message, "Reply karo!")
-    tid = message.reply_to_message.from_user.id
+    # Lock Switch Check
+    cmd_name = message.text.split()[0].lower().replace("/", "")
+    if cmd_name in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+
+    # Check karna ki group hai ya DM
+    if message.chat.type == 'private':
+        return bot.reply_to(message, "❌ Boss, ye command sirf Group me chalti hai!")
+
+    # Check karna ki command chalane wala Admin hai ya nahi
     try:
-        if cmd == '/ban': bot.ban_chat_member(message.chat.id, tid); bot.reply_to(message, "Banned!")
-        elif cmd == '/unban': bot.unban_chat_member(message.chat.id, tid); bot.reply_to(message, "Unbanned!")
-        elif cmd == '/mute': bot.restrict_chat_member(message.chat.id, tid, can_send_messages=False); bot.reply_to(message, "Muted!")
-        elif cmd == '/unmute': bot.restrict_chat_member(message.chat.id, tid, can_send_messages=True, can_send_media_messages=True, can_send_other_messages=True); bot.reply_to(message, "Unmuted!")
-    except: bot.reply_to(message, "Admin power chahiye ya main admin nahi hu!")
+        member = bot.get_chat_member(message.chat.id, message.from_user.id)
+        if member.status not in ['administrator', 'creator'] and message.from_user.id != ADMIN_ID:
+            return bot.reply_to(message, "❌ Teri aukaat nahi hai! Sirf Admins ye kar sakte hain.")
+    except Exception as e:
+        return bot.reply_to(message, "❌ Admin status verify nahi ho paaya sa.")
+
+    cmd = message.text.split()[0].lower()
+
+    # 📌 PIN COMMAND LOGIC
+    if cmd == '/pin':
+        if not message.reply_to_message:
+            return bot.reply_to(message, "❌ Jis message ko Pin karna hai, us par reply karke /pin likho!")
+        try:
+            bot.pin_chat_message(message.chat.id, message.reply_to_message.message_id)
+            return bot.reply_to(message, "📌 **Message Pinned!** Group ke top pe chipka diya sa!")
+        except:
+            return bot.reply_to(message, "❌ Mere paas power nahi hai. Bot ko group mein Admin banao aur 'Pin Messages' ka right do!")
+
+    # 🔨 BAN / MUTE COMMANDS LOGIC
+    if not message.reply_to_message: 
+        return bot.reply_to(message, "❌ Jisko saza deni hai, uske message par reply karke command likho!")
+    
+    tid = message.reply_to_message.from_user.id
+    
+    # Khud ko ya asil Boss ko ban hone se bachana
+    if tid == bot.get_me().id:
+        return bot.reply_to(message, "❌ Mujhe hi ban karega? Gadaari korbe!")
+    if tid == ADMIN_ID:
+        return bot.reply_to(message, "❌ Boss (Main Admin) ko haath lagane ki koshish mat kar!")
+
+    try:
+        if cmd == '/ban': 
+            bot.ban_chat_member(message.chat.id, tid)
+            bot.reply_to(message, "🔨 **BANNED!**\nNikal diya gaya hai isko group se!")
+        elif cmd == '/unban': 
+            bot.unban_chat_member(message.chat.id, tid)
+            bot.reply_to(message, "✅ **UNBANNED!**\nMaaf kiya, wapas aa sakta hai ab.")
+        elif cmd == '/mute': 
+            bot.restrict_chat_member(message.chat.id, tid, can_send_messages=False)
+            bot.reply_to(message, "🤐 **MUTED!**\nAb ye bol nahi payega! Shanti!")
+        elif cmd == '/unmute': 
+            bot.restrict_chat_member(message.chat.id, tid, can_send_messages=True, can_send_media_messages=True, can_send_other_messages=True)
+            bot.reply_to(message, "🔊 **UNMUTED!**\nBolne ki azaadi mil gayi wapas!")
+    except Exception as e: 
+        bot.reply_to(message, "❌ **Error!** Ya toh mere paas Admin Power (Ban/Mute) nahi hai, ya jisko saza de rahe ho wo bhi ek dusra Admin hai!")
 
 @bot.callback_query_handler(func=lambda call: True)
 def callbacks(call):
