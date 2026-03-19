@@ -826,8 +826,8 @@ def paper_cmd(message):
     btns = [InlineKeyboardButton(c["name"], callback_data=f"pcolor_{msg_id}_{idx}") for idx, c in enumerate(INK_COLORS.values())]
     markup.add(*btns)
     
-bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup)
-
+    # Iske aage exactly 4 spaces hain, ab koi error nahi aayega!
+    bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup)
 def xo_start(message):
     if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     try:
