@@ -1,5 +1,6 @@
 import telebot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+import re
 from PIL import Image, ImageDraw, ImageFont
 import io
 import textwrap
@@ -81,6 +82,21 @@ pending_loans = {}
 xo_games = {}
 poll_voters = set()
 pending_says = {}
+pending_papers = {}
+
+# 🎨 9 VIP INK COLORS
+INK_COLORS = {
+    "blue": {"rgb": (0, 0, 180), "name": "🔵 Blue"},
+    "black": {"rgb": (20, 20, 20), "name": "⚫ Black"},
+    "red": {"rgb": (180, 0, 0), "name": "🔴 Red"},
+    "green": {"rgb": (0, 100, 0), "name": "🟢 Green"},
+    "purple": {"rgb": (128, 0, 128), "name": "🟣 Purple"},
+    "orange": {"rgb": (255, 140, 0), "name": "🟠 Orange"},
+    "pink": {"rgb": (255, 20, 147), "name": "🌸 Pink"},
+    "brown": {"rgb": (139, 69, 19), "name": "🟤 Brown"},
+    "cyan": {"rgb": (0, 139, 139), "name": "🩵 Cyan"}
+}
+COLOR_KEYS = list(INK_COLORS.keys())
 disabled_cmds = set() # 👈 Naya switch board
 current_dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif" # Default GIF
 
