@@ -6,3 +6,5 @@ pillow
 edge-tts
 opencv-python-headless
 numpy
+rembg
+onnxruntime
