@@ -29,7 +29,6 @@ app = Flask('')
 def home(): return "your friend daimond batch bot is here!"
 def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 def keep_alive(): threading.Thread(target=run).start()
-keep_alive()
 
 # 🔐 SECURE KEYS (Ab sab Render ki tijori / Environment Variables se aayega)
 API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -2141,6 +2140,7 @@ def handle_all(message):
         if clean: bot.reply_to(message, get_ai_response(clean))
 if __name__ == "__main__":
 
+    keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     
     # 🚨 NAYA: NEWS ANCHOR SCHEDULER (India Time ke hisaab se)
