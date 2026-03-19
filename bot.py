@@ -97,7 +97,7 @@ bot.set_my_commands([
     BotCommand("block", "👑 Kisi ko bot se block karein"),
     BotCommand("gift", "👑 Kisi ko free mein paise dein"),
     BotCommand("addkill", "👑 Kisi ke kills badhayein"),
-    BotCommand("deactivate", "👑 Kisi command ko band karein")
+    BotCommand("deactivate", "👑 Kisi command ko band karein"),
     BotCommand("revive", "Zinda karein (700 Rs lagenge)"),
     BotCommand("xo", "Tic-Tac-Toe khelein"),
     BotCommand("ban", "👑 Group se nikalein"),
