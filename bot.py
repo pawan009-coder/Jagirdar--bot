@@ -1,5 +1,8 @@
 import telebot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+from PIL import Image, ImageDraw, ImageFont
+import io
+import textwrap
 import time
 import random
 import requests
@@ -631,46 +634,125 @@ FONT_MAPPING = {
     "6": "font6", "7": "font7", "8": "font8", "9": "font1", "10": "font2"
 }
 
+from PIL import Image, ImageDraw, ImageFont
+import io
+import textwrap
+import os
+import requests
+
+# 📜 GRAND LEGEND FEATURE: 30 VIP FONTS (KHUD KA REALISTIC PAPER)
+FONTS_URL = {
+    # 🔥 TOP 10: Ekdum 100% Asli aur Realistic Handwriting
+    "1": "https://github.com/google/fonts/raw/main/ofl/caveat/Caveat-Regular.ttf", # Default: Perfect Pen Handwriting
+    "2": "https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf", # Saaf aur natural
+    "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf", # Thodi patli aur stylish
+    "4": "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf", # Teenager writing
+    "5": "https://github.com/google/fonts/raw/main/ofl/indieflower/IndieFlower-Regular.ttf", # Bubbly aur cute
+    "6": "https://github.com/google/fonts/raw/main/ofl/kalam/Kalam-Regular.ttf", # Desi/Indian style handwriting
+    "7": "https://github.com/google/fonts/raw/main/ofl/reeniebeanie/ReenieBeanie.ttf", # Fast aur ghasit ke likhi hui
+    "8": "https://github.com/google/fonts/raw/main/ofl/justanotherhand/JustAnotherHand-Regular.ttf", # Patli ink wali
+    "9": "https://github.com/google/fonts/raw/main/ofl/mansalva/Mansalva-Regular.ttf", # Asli Doctor ki writing 🩺
+    "10": "https://github.com/google/fonts/raw/main/ofl/nanumpenscript/NanumPenScript-Regular.ttf", # Gel pen se likhi hui
+    
+    # ✒️ 11-20: VIP Cursive, Signatures aur Calligraphy
+    "11": "https://github.com/google/fonts/raw/main/ofl/dancingscript/DancingScript-Regular.ttf",
+    "12": "https://github.com/google/fonts/raw/main/ofl/pacifico/Pacifico-Regular.ttf",
+    "13": "https://github.com/google/fonts/raw/main/ofl/sacramento/Sacramento-Regular.ttf",
+    "14": "https://github.com/google/fonts/raw/main/ofl/greatvibes/GreatVibes-Regular.ttf",
+    "15": "https://github.com/google/fonts/raw/main/ofl/parisienne/Parisienne-Regular.ttf",
+    "16": "https://github.com/google/fonts/raw/main/ofl/allura/Allura-Regular.ttf",
+    "17": "https://github.com/google/fonts/raw/main/ofl/alexbrush/AlexBrush-Regular.ttf",
+    "18": "https://github.com/google/fonts/raw/main/ofl/cookie/Cookie-Regular.ttf",
+    "19": "https://github.com/google/fonts/raw/main/ofl/rochester/Rochester-Regular.ttf",
+    "20": "https://github.com/google/fonts/raw/main/ofl/satisfy/Satisfy-Regular.ttf",
+
+    # 🖌️ 21-30: Aesthetic, Marker, aur Clean Print
+    "21": "https://github.com/google/fonts/raw/main/ofl/architectsdaughter/ArchitectsDaughter-Regular.ttf",
+    "22": "https://github.com/google/fonts/raw/main/ofl/handlee/Handlee-Regular.ttf",
+    "23": "https://github.com/google/fonts/raw/main/ofl/amaticsc/AmaticSC-Regular.ttf",
+    "24": "https://github.com/google/fonts/raw/main/apache/permanentmarker/PermanentMarker-Regular.ttf", # Mota Marker
+    "25": "https://github.com/google/fonts/raw/main/apache/rocksalt/RockSalt-Regular.ttf",
+    "26": "https://github.com/google/fonts/raw/main/ofl/coveredbyyourgrace/CoveredByYourGrace.ttf",
+    "27": "https://github.com/google/fonts/raw/main/ofl/gloriahallelujah/GloriaHallelujah.ttf",
+    "28": "https://github.com/google/fonts/raw/main/apache/walterturncoat/WalterTurncoat-Regular.ttf",
+    "29": "https://github.com/google/fonts/raw/main/ofl/neucha/Neucha-Regular.ttf",
+    "30": "https://github.com/google/fonts/raw/main/ofl/badscript/BadScript-Regular.ttf"
+}
+
+if not os.path.exists('assets'):
+    os.makedirs('assets')
+
+def make_paper_image(text, style_num):
+    # Blank White Kagaz (Resolution 800x1100)
+    img = Image.new('RGB', (800, 1100), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    # Red margin aur Blue lines
+    draw.line([(100, 0), (100, 1100)], fill=(255, 150, 150), width=2)
+    line_spacing = 50
+    for y in range(100, 1100, line_spacing):
+        draw.line([(0, y), (800, y)], fill=(200, 220, 255), width=2)
+
+    # Font set karna (Agar 1-30 me kuch aur dala toh Default 1 lagega)
+    font_url = FONTS_URL.get(str(style_num), FONTS_URL["1"])
+    font_name = font_url.split('/')[-1]
+    font_path = f"assets/{font_name}"
+
+    # Ek hi baar download karega, uske baad hamesha turant chalega
+    if not os.path.exists(font_path):
+        try:
+            res = requests.get(font_url)
+            with open(font_path, 'wb') as f: f.write(res.content)
+        except: pass
+
+    try: font = ImageFont.truetype(font_path, 40)
+    except: font = ImageFont.load_default()
+
+    # Text ko kagaz par set karna
+    lines = textwrap.wrap(text, width=35) 
+    y_text = 100 - 45 
+    
+    for line in lines:
+        draw.text((120, y_text), line, font=font, fill=(0, 0, 150)) # Blue ink
+        y_text += line_spacing
+
+    bio = io.BytesIO()
+    bio.name = 'paper.jpg'
+    img.save(bio, 'JPEG')
+    bio.seek(0)
+    return bio
+
 @bot.message_handler(commands=['paper'])
 def generate_paper(message):
-    # Lock Check
     if "paper" in disabled_cmds and message.from_user.id != ADMIN_ID: 
         return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     
     parts = message.text.split(maxsplit=2)
     user_text = ""
-    style = "font1" # Default
+    style = "1" # Default Realistic Handwriting
     
-    # Text nikalna (Reply se ya Direct)
     if message.reply_to_message and message.reply_to_message.text:
         user_text = message.reply_to_message.text
-        if len(parts) > 1 and parts[1].isdigit():
-            style = FONT_MAPPING.get(parts[1], "font1")
+        if len(parts) > 1 and parts[1].isdigit(): style = parts[1]
     else:
         if len(parts) > 1:
             if parts[1].isdigit(): 
-                style = FONT_MAPPING.get(parts[1], "font1")
+                style = parts[1]
                 if len(parts) > 2: user_text = parts[2]
-            else:
-                user_text = message.text.replace("/paper", "").strip()
+            else: user_text = message.text.replace("/paper", "").strip()
 
     if not user_text:
-        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper text` ya `/paper 3 text`\n(Ya kisi message par reply karke `/paper 2` likho)", parse_mode="Markdown")
+        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper text` ya `/paper 30 text`\n(1 se 30 tak koi bhi writing style chuno!)", parse_mode="Markdown")
 
-    wait_msg = bot.reply_to(message, "⏳ *Kagaz pe blue ink se likha ja raha hai, wait karo sa...*", parse_mode="Markdown")
+    wait_msg = bot.reply_to(message, f"⏳ *Kagaz pe blue ink se likh raha hu (Style #{style})... 2 second ruk sa!*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'upload_photo')
     
-    safe_text = urllib.parse.quote(user_text)
-    
-    # 🔗 API Call
-    api_url = f"https://text-to-handwriting-api.vercel.app/api?text={safe_text}&font={style}&color=blue&paperType=lined"
-    
     try:
-        bot.send_photo(message.chat.id, photo=api_url, caption=f"📝 **Daimond Batch Official Document!**\n🖋️ Style: {style.replace('font', '')}")
+        photo_stream = make_paper_image(user_text, style)
+        bot.send_photo(message.chat.id, photo=photo_stream, caption=f"📝 **Daimond Batch Official Document!**\n🖋️ Style: #{style}")
         bot.delete_message(message.chat.id, wait_msg.message_id)
     except Exception as e:
-        bot.edit_message_text("❌ Kagaz aur kalam khatam ho gaye sa! API server thoda thak gaya hai.", message.chat.id, wait_msg.message_id)
-
+        bot.edit_message_text(f"❌ Bhai pen ki ink sookh gayi thodi: {e}", message.chat.id, wait_msg.message_id)
 @bot.message_handler(commands=['xo'])
 def xo_start(message):
     if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
