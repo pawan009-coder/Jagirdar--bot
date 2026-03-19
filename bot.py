@@ -826,15 +826,8 @@ def paper_cmd(message):
     btns = [InlineKeyboardButton(c["name"], callback_data=f"pcolor_{msg_id}_{idx}") for idx, c in enumerate(INK_COLORS.values())]
     markup.add(*btns)
     
-    bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup).id, 'upload_photo')
-    
-    try:
-        photo_stream = make_paper_image(user_text, style)
-        bot.send_photo(message.chat.id, photo=photo_stream, caption=f"📝 **Daimond Batch Official Document!**\n🖋️ Style: #{style}")
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"❌ Bhai pen ki ink sookh gayi thodi: {e}", message.chat.id, wait_msg.message_id)
-@bot.message_handler(commands=['xo'])
+bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup)
+
 def xo_start(message):
     if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     try:
