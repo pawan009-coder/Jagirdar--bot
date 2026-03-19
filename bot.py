@@ -8,6 +8,7 @@ import time
 import random
 import requests
 import os
+import subprocess
 from flask import Flask
 import threading
 import urllib.parse
@@ -323,6 +324,40 @@ def check_bal(message):
     inv_text = ", ".join(inv) if inv else "Kuch nahi (KHALI)"
     
     bot.reply_to(message, f"🏦 **ACCOUNT: {u['name']}**\n🌍 Global Rank: #{rank} (out of {total_users})\n🏆 Level: {get_level(u['bal'])}\n💰 Balance: {u['bal']} Rs\n🔪 Kills: {u.get('kills', 0)}\n🔰 Shield: {shield_status}\n🎒 **ITEMS:** {inv_text}\n❤️ Status: {u['status']}")
+import os
+import subprocess
+
+@bot.message_handler(commands=['speak', 'bolo'])
+def speak_cmd(message):
+    # Lock Check
+    if "speak" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    text = message.text.replace("/speak", "").replace("/bolo", "").strip()
+    if not text:
+        return bot.reply_to(message, "🗣️ **Aise likho:**\n`/speak Jodhpur walo, kaise ho sab?`\n*(Hindi, English ya Hinglish kuch bhi likho sa!)*", parse_mode="Markdown")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Gala saaf kar raha hu, 2 second ruk sa...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_voice')
+    
+    try:
+        # Security: Taki koi hacker code break na kare
+        safe_text = text.replace('"', '').replace("'", "")
+        
+        # 🎙️ Edge-TTS ka VIP Magic (MadhurNeural - Indian Male Voice)
+        # Ye awaaz ekdum asli insaan jaisi hai aur Hinglish perfect bolti hai
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--text', safe_text, '--write-media', 'voice.ogg'])
+        
+        # Telegram par asli Voice Note (.ogg) bhejna
+        with open("voice.ogg", "rb") as audio:
+            bot.send_voice(message.chat.id, audio, caption="🎙️ **Daimond Batch AI Voice**")
+            
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        
+        # Audio file bhejne ke baad server se delete kar do (Kachra saaf)
+        os.remove("voice.ogg") 
+    except Exception as e:
+        bot.edit_message_text(f"❌ Khasi aagayi bot ko sa! API shayad busy hai: {e}", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
