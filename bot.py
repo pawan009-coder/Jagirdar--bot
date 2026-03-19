@@ -695,14 +695,6 @@ import requests
 
 # 📜 GRAND LEGEND FEATURE: 30 VIP FONTS (KHUD KA REALISTIC PAPER)
 FONTS_URL = {
-    # 🔥 TOP 10: Ekdum 100% Asli aur Realistic Handwriting
-    "1": "https://github.com/google/fonts/raw/main/ofl/caveat/Caveat-Regular.ttf", # Default: Perfect Pen Handwriting
-    "2": "https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf", # Saaf aur natural
-    "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf", # Thodi patli aur stylish
-    "4": "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf", # Teenager writing
-    "5": "https://github.com/google/fonts/raw/main/ofl/indieflower/IndieFlower-Regular.ttf", # Bubbly aur cute
-# 📜 GRAND LEGEND FEATURE: 30 VIP FONTS (KHUD KA REALISTIC PAPER)
-FONTS_URL = {
     "1": "https://github.com/google/fonts/raw/main/ofl/caveat/Caveat-Regular.ttf",
     "2": "https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf",
     "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf",
