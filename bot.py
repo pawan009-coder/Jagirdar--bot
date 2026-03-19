@@ -701,13 +701,18 @@ FONTS_URL = {
     "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf", # Thodi patli aur stylish
     "4": "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf", # Teenager writing
     "5": "https://github.com/google/fonts/raw/main/ofl/indieflower/IndieFlower-Regular.ttf", # Bubbly aur cute
-    "6": "https://github.com/google/fonts/raw/main/ofl/kalam/Kalam-Regular.ttf", # Desi/Indian style handwriting
-    "7": "https://github.com/google/fonts/raw/main/ofl/reeniebeanie/ReenieBeanie.ttf", # Fast aur ghasit ke likhi hui
-    "8": "https://github.com/google/fonts/raw/main/ofl/justanotherhand/JustAnotherHand-Regular.ttf", # Patli ink wali
-    "9": "https://github.com/google/fonts/raw/main/ofl/mansalva/Mansalva-Regular.ttf", # Asli Doctor ki writing 🩺
-    "10": "https://github.com/google/fonts/raw/main/ofl/nanumpenscript/NanumPenScript-Regular.ttf", # Gel pen se likhi hui
-    
-    # ✒️ 11-20: VIP Cursive, Signatures aur Calligraphy
+# 📜 GRAND LEGEND FEATURE: 30 VIP FONTS (KHUD KA REALISTIC PAPER)
+FONTS_URL = {
+    "1": "https://github.com/google/fonts/raw/main/ofl/caveat/Caveat-Regular.ttf",
+    "2": "https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf",
+    "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf",
+    "4": "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf",
+    "5": "https://github.com/google/fonts/raw/main/ofl/indieflower/IndieFlower-Regular.ttf",
+    "6": "https://github.com/google/fonts/raw/main/ofl/kalam/Kalam-Regular.ttf",
+    "7": "https://github.com/google/fonts/raw/main/ofl/reeniebeanie/ReenieBeanie.ttf",
+    "8": "https://github.com/google/fonts/raw/main/ofl/justanotherhand/JustAnotherHand-Regular.ttf",
+    "9": "https://github.com/google/fonts/raw/main/ofl/mansalva/Mansalva-Regular.ttf",
+    "10": "https://github.com/google/fonts/raw/main/ofl/nanumpenscript/NanumPenScript-Regular.ttf",
     "11": "https://github.com/google/fonts/raw/main/ofl/dancingscript/DancingScript-Regular.ttf",
     "12": "https://github.com/google/fonts/raw/main/ofl/pacifico/Pacifico-Regular.ttf",
     "13": "https://github.com/google/fonts/raw/main/ofl/sacramento/Sacramento-Regular.ttf",
@@ -718,12 +723,10 @@ FONTS_URL = {
     "18": "https://github.com/google/fonts/raw/main/ofl/cookie/Cookie-Regular.ttf",
     "19": "https://github.com/google/fonts/raw/main/ofl/rochester/Rochester-Regular.ttf",
     "20": "https://github.com/google/fonts/raw/main/ofl/satisfy/Satisfy-Regular.ttf",
-
-    # 🖌️ 21-30: Aesthetic, Marker, aur Clean Print
     "21": "https://github.com/google/fonts/raw/main/ofl/architectsdaughter/ArchitectsDaughter-Regular.ttf",
     "22": "https://github.com/google/fonts/raw/main/ofl/handlee/Handlee-Regular.ttf",
     "23": "https://github.com/google/fonts/raw/main/ofl/amaticsc/AmaticSC-Regular.ttf",
-    "24": "https://github.com/google/fonts/raw/main/apache/permanentmarker/PermanentMarker-Regular.ttf", # Mota Marker
+    "24": "https://github.com/google/fonts/raw/main/apache/permanentmarker/PermanentMarker-Regular.ttf",
     "25": "https://github.com/google/fonts/raw/main/apache/rocksalt/RockSalt-Regular.ttf",
     "26": "https://github.com/google/fonts/raw/main/ofl/coveredbyyourgrace/CoveredByYourGrace.ttf",
     "27": "https://github.com/google/fonts/raw/main/ofl/gloriahallelujah/GloriaHallelujah.ttf",
@@ -733,48 +736,9 @@ FONTS_URL = {
 }
 
 if not os.path.exists('assets'):
-    os.makedirs('assets')
-
-
-
-    # Text ko kagaz par set karna
-    lines = textwrap.wrap(text, width=35) 
-    y_text = 100 - 45 
+    os.makedirs('assets')    
     
-    for line in lines:
-        draw.text((120, y_text), line, font=font, fill=(0, 0, 150)) # Blue ink
-        y_text += line_spacing
-
-    bio = io.BytesIO()
-    bio.name = 'paper.jpg'
-    img.save(bio, 'JPEG')
-    bio.seek(0)
-    return bio
-
-@bot.message_handler(commands=['paper'])
-def generate_paper(message):
-    if "paper" in disabled_cmds and message.from_user.id != ADMIN_ID: 
-        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-    
-    parts = message.text.split(maxsplit=2)
-    user_text = ""
-    style = "1" # Default Realistic Handwriting
-    
-    if message.reply_to_message and message.reply_to_message.text:
-        user_text = message.reply_to_message.text
-        if len(parts) > 1 and parts[1].isdigit(): style = parts[1]
-    else:
-        if len(parts) > 1:
-            if parts[1].isdigit(): 
-                style = parts[1]
-                if len(parts) > 2: user_text = parts[2]
-            else: user_text = message.text.replace("/paper", "").strip()
-
-    if not user_text:
-        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper text` ya `/paper 30 text`\n(1 se 30 tak koi bhi writing style chuno!)", parse_mode="Markdown")
-
-    wait_msg = bot.reply_to(message, f"⏳ *Kagaz pe blue ink se likh raha hu (Style #{style})... 2 second ruk sa!*", parse_mode="Markdown")
-    bot.send_chat_action(message.chatdef parse_paper_text(raw_text):
+def parse_paper_text(raw_text):
     # Multi-command ko todne ka logic
     parts = raw_text.split('/paper')
     segments = []
