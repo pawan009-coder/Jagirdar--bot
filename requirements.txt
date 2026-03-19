@@ -10,3 +10,4 @@ rembg
 onnxruntime
 pytesseract
 deep-translator
+yt-dlp
