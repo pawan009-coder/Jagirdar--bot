@@ -11,3 +11,6 @@ onnxruntime
 pytesseract
 deep-translator
 yt-dlp
+feedparser
+apscheduler
+pytz
