@@ -1159,6 +1159,22 @@ def callbacks(call):
         except Exception as e: bot.answer_callback_query(call.id, "Bhejne mein error aayi!")
         del pending_says[uid]
 
+    elif d.startswith("pcolor_"):
+        _, msg_id, color_idx = d.split("_")
+        if msg_id not in pending_papers:
+            return bot.answer_callback_query(call.id, "Ye paper purana ho gaya sa!")
+        
+        data = pending_papers[msg_id]
+        bot.edit_message_text("⏳ *Kagaz pe likha ja raha hai, 2 second ruk sa...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+        
+        try:
+            photo_stream = make_supreme_paper(data["segments"], int(color_idx))
+            bot.send_photo(call.message.chat.id, photo=photo_stream)
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            del pending_papers[msg_id]
+        except Exception as e:
+            bot.edit_message_text(f"❌ Error aagya: {e}", call.message.chat.id, call.message.message_id)
+    
     elif d.startswith("buy_"):
         item_id = d.replace("buy_", "")
         if item_id not in SHOP_ITEMS: return bot.answer_callback_query(call.id, "Ye item dukaan mein nahi hai!")
