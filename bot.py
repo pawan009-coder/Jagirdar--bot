@@ -343,40 +343,42 @@ def buy_shield(message):
     u['bal'] -= 500
     u['shield_until'] = time.time() + 86400 # 24 Hours
     bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
-
 @bot.message_handler(commands=['imagine', 'photo'])
 def generate_image(message):
-    if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    # Lock Check
+    if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     
     prompt = message.text.replace("/imagine", "").replace("/photo", "").strip()
     if not prompt:
-        return bot.reply_to(message, "🎨 **Aise likho:**\n`/imagine ek udta hua ghoda`", parse_mode="Markdown")
+        return bot.reply_to(message, "🎨 **Aise likho:**\n`/imagine ek udta hua ghoda aur Jodhpur ka qila`", parse_mode="Markdown")
     
-    # ⏳ User ko wait karne ka message
-    wait_msg = bot.reply_to(message, "⏳ *Jadoo ho raha hai... 10-15 second wait karo!*", parse_mode="Markdown")
+    # 🚨 Render ki tijori se HF ki chaabi nikalna (Aapne naam 'H' rakha hai)
+    HF_KEY = os.environ.get('H')
+    if not HF_KEY:
+        return bot.reply_to(message, "❌ Boss! Hugging Face ki chaabi 'H' naam se Render mein nahi mili!")
+
+    wait_msg = bot.reply_to(message, "⏳ *Stable Diffusion XL aapki photo bana raha hai, 10-20 second wait karo sa...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'upload_photo')
     
-    safe_prompt = urllib.parse.quote(prompt)
-    seed = random.randint(1, 1000000)
-    
-    # Naya aur fast API link
-    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=1024&nologo=true&seed={seed}"
+    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    headers = {"Authorization": f"Bearer {HF_KEY}"}
+    payload = {"inputs": prompt}
     
     try:
-        # Telegram ko direct URL de do, wo khud download kar lega (100% fast aur safe)
-        bot.send_photo(message.chat.id, photo=image_url, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
-        bot.delete_message(message.chat.id, wait_msg.message_id) # Wait wala message hata do
+        # Timeout lamba rakha hai taaki heavy photo aaram se aa sake
+        res = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        
+        if res.status_code == 200:
+            bot.send_photo(message.chat.id, photo=res.content, caption=f"🎨 **Yeh lijiye aapki AI Photo!**\n📝 Prompt: {prompt}")
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+        elif res.status_code == 503:
+            # Jab model pehli baar load hota hai toh 503 error aata hai
+            bot.edit_message_text("⏳ Model abhi neend se jaag raha hai sa! Bas 20-30 second baad wapas command dalo, ekdum chal padega.", message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ Kuch gadbad hui sa! Error Code: {res.status_code}", message.chat.id, wait_msg.message_id)
     except Exception as e:
-        # Agar URL se fail ho jaye toh purana Jugaad (Download karke bhejna)
-        try:
-            res = requests.get(image_url, timeout=30)
-            if res.status_code == 200:
-                bot.send_photo(message.chat.id, photo=res.content, caption=f"🎨 **Yeh lijiye aapki photo!**\n📝 Prompt: {prompt}")
-                bot.delete_message(message.chat.id, wait_msg.message_id)
-            else:
-                bot.edit_message_text("❌ Server thoda aalsi ho gaya hai. Ek baar wapas likho sa!", message.chat.id, wait_msg.message_id)
-        except Exception as e2:
-            bot.edit_message_text("❌ Photo banne mein thodi dikkat hui. Prompt thoda chota ya alag likh kar dekho sa!", message.chat.id, wait_msg.message_id)
+        bot.edit_message_text("❌ Photo banne mein thodi dikkat hui. Wapas try karein sa!", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
