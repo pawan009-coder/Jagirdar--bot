@@ -8,3 +8,5 @@ opencv-python-headless
 numpy
 rembg
 onnxruntime
+pytesseract
+deep-translator
