@@ -1,8 +1,17 @@
 import telebot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
 import re
+import feedparser
+from apscheduler.schedulers.background import BackgroundScheduler
+import pytz
+import yt_dlp
 from PIL import Image, ImageDraw, ImageFont
 import io
+import pytesseract
+from deep_translator import GoogleTranslator
+from rembg import remove
+import cv2
+import numpy as np
 import textwrap
 import time
 import random
@@ -47,7 +56,6 @@ API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
-bot = telebot.TeleBot(API_TOKEN)
 
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
@@ -67,6 +75,29 @@ bot.set_my_commands([
     BotCommand("return", "Udhar wapas karein"),
     BotCommand("rob", "Dusre ke paise churayein"),
     BotCommand("kill", "Shikaar karein (500 Rs inam)"),
+    # 🔥 NAYE AI AUR VIP FEATURES
+    BotCommand("roast", "🔥 Kisi ko AI Rap se roast karein"),
+    BotCommand("ask", "🗣️ AI Jarvis se voice me jawab paayein"),
+    BotCommand("reel", "🎬 AI se cinematic Reel/Shorts banayein"),
+    BotCommand("video", "🎬 AI Motivational Video banayein"),
+    BotCommand("dl", "📥 Insta/YT ka video download karein"),
+    BotCommand("photo", "📸 Photo ka background transparent banayein"),
+    BotCommand("read", "👁️ Kitab/Notes padh kar Hindi me translate karein"),
+    BotCommand("sketch", "🎨 Photo ka Pencil Sketch banayein"),
+    BotCommand("speak", "🎙️ Bot ki aawaz me apni baat bulwayein"),
+    BotCommand("paper", "📜 Kagaz par VIP font me likhwayein"),
+    
+    # 🎲 NAYE GAMES
+    BotCommand("sps", "🪨📄✂️ Stone Paper Scissor khelein"),
+    BotCommand("dance", "🕺 Balle Balle! Party Time"),
+    
+    # 👑 NAYE ADMIN COMMANDS (Sirf Boss ke liye)
+    BotCommand("list", "👑 DM me sabki list dekhein"),
+    BotCommand("tell", "👑 DM se sabko message bhejein"),
+    BotCommand("block", "👑 Kisi ko bot se block karein"),
+    BotCommand("gift", "👑 Kisi ko free mein paise dein"),
+    BotCommand("addkill", "👑 Kisi ke kills badhayein"),
+    BotCommand("deactivate", "👑 Kisi command ko band karein")
     BotCommand("revive", "Zinda karein (700 Rs lagenge)"),
     BotCommand("xo", "Tic-Tac-Toe khelein"),
     BotCommand("ban", "👑 Group se nikalein"),
@@ -101,6 +132,161 @@ INK_COLORS = {
 COLOR_KEYS = list(INK_COLORS.keys())
 disabled_cmds = set() # 👈 Naya switch board
 current_dance_gif = "https://media.tenor.com/3Z_yJbB4g8AAAAAC/dance-party.gif" # Default GIF
+
+@bot.message_handler(commands=['help'])
+def supreme_help_cmd(message):
+    # Lock Check
+    if "help" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Daimond Batch ka Maha-Granth (Help Menu) khol raha hu...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'typing')
+
+    # ==========================================
+    # 📜 PART 1: ECONOMY, CRIME & CASINO
+    # ==========================================
+    help_text_1 = """
+👑 **DAIMOND BATCH - THE SUPREME GUIDE (PART 1)** 👑
+Dhyan se suno dosto! Ye koi aam bot nahi hai, ye ek poori virtual duniya hai jahan aap ameer ban sakte ho, mafia ban sakte ho, aur AI ke maje le sakte ho. Yahan har command ka ek deep secret hai. Niche saari details deeply samjhayi gayi hain:
+
+🏦 **BANK AUR ECONOMY (Paisa Hi Paisa)** 💸
+🔹 `/bal` : Ye aapka personal bank khata hai. Isse aapko pata chalega ki aapka Global Rank kya hai, aapke paas kitna cash (Rs) hai, aapne kitne khoon (kills) kiye hain, aapke jhole (inventory) mein kya-kya samaan hai, aur aapki Shield active hai ya nahi.
+🔹 `/daily` : Har 24 ghante mein aao aur free ke 200 Rs claim karo. Agar aapne Chor Bazaar se "Don Taj" pehna hai, toh ye rakam double (400 Rs) ho jayegi!
+🔹 `/weekly` : Har 7 din mein ek baar bada inam! Isey lagane par seedha 2000 Rs milte hain. Don Taj walo ko 4000 Rs milte hain!
+🔹 `/give [amount]` : Apne dosto ko paise donate karne ka tarika. Kisi ke bhi message par reply karke likho `/give 500` aur aapke bank se paise uske bank me chale jayenge. Asli bhaichara!
+🔹 `/loan [amount]` : Agar dost ko udhar dena hai toh uske message par reply karke `/loan 1000` likho. Us bande ke paas ek button aayega accept karne ka. Dhyan rahe, 24 ghante mein udhar wapas nahi kiya toh bot automatically uske account se paise aur 500 Rs fine kaat kar aapko de dega! Max limit 4000 Rs hai.
+🔹 `/return` : Apne sir se karza utarne ke liye ye command lagao. Jiska udhar liya hai, usko apne aap paise chale jayenge.
+🔹 `/shield` : 500 Rs dekar 24 ghante ke liye "Kavach" khareedo. Iske baad koi bhi aapko loot (rob) ya maar (kill) nahi payega.
+
+🔪 **UNDERWORLD AUR MAFIA (Crime City)** 🩸
+🔹 `/shop` (ya `/bazaar`) : Ye sabse khatarnak jagah hai! Yahan se aap apne paise se hathiyar aur security khareed sakte ho:
+   - 🔪 *Chakku (1500 Rs)*: Chori karne par 200 Rs ka extra bonus.
+   - 🔫 *Desi Katta (8000 Rs)*: Khoon karne ka inam 500 se badhkar 1500 Rs.
+   - 🦺 *Bulletproof Jacket (15000 Rs)*: Ek baar goli lagne se bachayegi.
+   - 🐕 *Khufiya Kutta (30000 Rs)*: Koi rob karega toh 30% chance hai kutta usey kaat lega aur chori fail ho jayegi!
+   - 💣 *AK-47 (100000 Rs)*: Har khoon par seedha 5000 Rs ka heavy inam!
+   - 👑 *Don Taj (500000 Rs)*: Daily aur Weekly inam hamesha ke liye Double!
+🔹 `/rob [amount]` : Kisi ka paisa churana ho toh uske message par reply karke `/rob 1000` likho. Par yaad rakhna, agar uske paas kutta hua ya shield hui, toh aapka plan fail ho sakta hai. Aur chori ka 5% tax bot kaat leta hai!
+🔹 `/kill` : Dushmani nikalne ka best tarika. Reply karke `/kill` likho. Target "Dead" ho jayega. Murda insaan koi game nahi khel sakta. Kill ka inam aapke hathiyar par depend karta hai.
+🔹 `/revive` : Agar aapka dost mara gaya hai, toh aap uske message par reply karke 700 Rs dekar usko wapas zinda kar sakte ho (Sanjeevani Booti).
+🔹 `/toprank` : Pure group mein sabse ameer Top 10 logo ki list dekhne ke liye.
+🔹 `/topkills` : Group ke sabse khatarnak Top 10 Serial Killers ki list!
+
+🎰 **CASINO AUR GAMES (Kismat Ka Khel)** 🎲
+🔹 `/dice [amount]` : Apna paisa lagao aur Ludo ka dice feko. Agar dice par number '6' aata hai, toh aapka lagaya hua paisa seedha 3 Guna (3x) ho jayega! Warna haar jaoge.
+🔹 `/spin [amount]` : Casino ki slot machine. Agar teen '777' (Jackpot) match ho gaye, toh paisa 10 GUNA! Agar koi normal teeno image match hui toh 3 GUNA paisa!
+🔹 `/dart [amount]` : Teerandaazi! Agar teer center ke bilkul kareeb (Score 4, 5, ya 6) laga, toh paisa Double (2x).
+🔹 `/xo [amount]` : Apne dosto ke sath Tic-Tac-Toe khelo aur unka paisa jeeto.
+🔹 `/sps [amount]` : Stone, Paper, Scissors! Asli multiplayer game jisme 2 log bet lagate hain aur jo jeet ta hai wo poore paise le jata hai!
+"""
+
+    # ==========================================
+    # 🤖 PART 2: AI & GOD-LEVEL TOOLS
+    # ==========================================
+    help_text_2 = """
+🤖 **AI AUR GOD-LEVEL TOOLS (Future is Here)** 🚀
+Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saari commands free mein aapko premium features deti hain:
+
+🔹 `/ask [question]` : Humara apna 'Jarvis' AI. Ye duniya ke sabse fast LLaMA-3 model par chalta hai. Aap isse kuch bhi pucho (jaise `/ask Duniya ka sabse ameer aadmi kon hai?`), aur ye aapko type karke nahi, balki apni asli AI Awaaz (Voice Note) mein jawab bol kar sunayega!
+🔹 `/roast` : Kisi dost ke message par reply karke `/roast` likho. Bot usko ek desi underground rapper ki tarah bhayanak tareeqe se voice note mein diss karega. (Caution: Boss se panga liya toh bot ulta aapko hi dho dalega!)
+🔹 `/reel [topic]` (ya `/video`) : Apne channel ke liye automatic cinematic video banayein! Bas `/reel hard work` likho. Bot FLUX AI se ek HD cinematic photo banayega, aur uspe ek heavy Hindi motivational shayari khud likh kar aur voice mein record karke group mein bhej dega. Ek second mein poora studio ka kaam!
+🔹 `/photo` (Background Remover) : Kisi bhi photo par reply karke `/photo` likho. Bot server par apne AI se us photo ka pichla hissa (background) mita kar usko ek transparent HD PNG file bana kar bhej dega, jise aap kisi bhi editing me use kar sakte ho.
+🔹 `/imagine [prompt]` : Duniya ka sabse latest FLUX.1-schnell model. Aap likho `/imagine ek udta hua cyberpunk ghoda`, aur bot 15 second mein ekdum real aur HD photo bana kar aapke samne rakh dega.
+🔹 `/dl [link]` (ya `/insta`, `/yt`) : The Universal Downloader! Aap kisi bhi Instagram Reel, YouTube Short ya Twitter video ka link do. Bot usko background mein chup-chap download karke bina kisi watermark ke Telegram par upload kar dega.
+🔹 `/read` (ya `/ocr`) : Kitabo ka Hacker! Kisi lambe English notes ya kitab ke page ki photo kheench kar uspar `/read` reply karo. Bot photo ke andar likha hua poora text padh lega aur usko Hindi mein translate karke aapko bhej dega.
+🔹 `/sketch` : Apni kisi photo par reply karke `/sketch` lagao. Bot OpenCV library ka use karke aapki photo ko ek realistic hand-drawn pencil sketch mein badal dega.
+🔹 `/speak [text]` (ya `/bolo`) : Bot ki zubaan! Aap jo bhi text likhoge, bot usko ekdam saaf aur Madhur awaaz mein bol kar Voice note bhejega.
+🔹 `/paper [font_number] [text]` : Apna text ek realistic notebook ke kagaz par likhwayein! Humare paas 30 VIP cursive fonts hain. Jaise `/paper 1 Hello jodhpur`. Bot aapse ink ka color poochega aur ekdum asli handwriting wali image dega!
+🔹 `/dance` : Group mein mahol banane ke liye Balle-Balle wala party GIF
+
+*Agar bot pasand aaye, toh apne sabhi Telegram groups mein isko add karo aur Daimond Batch ka jalwa dikhao!*
+"""
+
+    try:
+        # Message 1 bhejna
+        bot.send_message(message.chat.id, help_text_1, parse_mode="Markdown")
+        # 1 second rukna taaki Telegram spam detect na kare
+        time.sleep(1)
+        # Message 2 bhejna
+        bot.send_message(message.chat.id, help_text_2, parse_mode="Markdown")
+        
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
+# ==========================================
+# 👑 SUPREME ADMIN CONTROL PANEL (DM ONLY)
+# ==========================================
+
+# 1. 🛑 Global Block Filter (Isko sabse upar rakhna zaroori hai)
+# Agar user blocked hai, toh ye filter uske message ko aage commands tak jane hi nahi dega
+@bot.message_handler(func=lambda message: users.get(message.from_user.id, {}).get('blocked', False))
+def blocked_user_handler(message):
+    bot.reply_to(message, "🚫 **ACCESS DENIED**\nBoss (Admin) ne aapko is bot se block kar diya hai sa!")
+
+# 2. 📋 List Command (Sabki Kundali)
+@bot.message_handler(commands=['list'])
+def admin_list_users(message):
+    if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
+    
+    text = "📋 **DAIMOND BATCH USERS** 📋\n━━━━━━━━━━━━━━━━━━━\n"
+    for i, (uid, data) in enumerate(users.items(), 1):
+        status = "🚫 BLOCKED" if data.get('blocked', False) else "✅ Active"
+        text += f"{i}. {data['name']} (ID: `{uid}`) - {status}\n"
+        
+    # Telegram ek baar mein 4096 characters hi bhejta hai
+    if len(text) > 4000: text = text[:4000] + "\n... (List bahut lambi hai sa!)"
+    bot.reply_to(message, text, parse_mode="Markdown")
+
+# 3. 📢 Tell Command (Announcement ya DM)
+@bot.message_handler(commands=['tell'])
+def admin_tell_cmd(message):
+    if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
+    
+    parts = message.text.split(maxsplit=2)
+    if len(parts) < 3:
+        return bot.reply_to(message, "📝 **Aise likho:**\n`/tell all Hello Jodhpur!`\n`/tell 123456789 Tera account check kar`", parse_mode="Markdown")
+        
+    target = parts[1].lower()
+    msg_text = parts[2]
+    
+    if target == "all" or target == "@all":
+        count = 0
+        for uid in users.keys():
+            try:
+                bot.send_message(uid, f"📢 **Admin Announcement:**\n\n{msg_text}")
+                count += 1
+            except: pass # Agar kisi ne bot ko DM me block kiya ho toh error na aaye
+        bot.reply_to(message, f"✅ Boss! Message {count} logo ko unke DM mein bhej diya gaya!")
+    else:
+        try:
+            target_id = int(target.replace("@", ""))
+            if target_id not in users: return bot.reply_to(message, "❌ Ye ID database mein nahi mili sa!")
+            bot.send_message(target_id, f"💬 **Admin Secret Message:**\n\n{msg_text}")
+            bot.reply_to(message, f"✅ Message '{users[target_id]['name']}' ko bhej diya!")
+        except:
+            bot.reply_to(message, "❌ User ka ID galat hai! `/list` dba kar sahi ID dekho.")
+
+# 4. 🔨 Block / Unblock Command
+@bot.message_handler(commands=['block', 'unblock'])
+def admin_block_cmd(message):
+    if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
+    
+    cmd = message.text.split()[0].lower()
+    try:
+        target_id = int(message.text.split()[1].replace("@", ""))
+    except:
+        return bot.reply_to(message, f"📝 **Aise likho:** `{cmd} 123456789`\n(ID `/list` command se dekhein)", parse_mode="Markdown")
+        
+    if target_id not in users: return bot.reply_to(message, "❌ Ye user database mein nahi hai sa!")
+    if target_id == ADMIN_ID: return bot.reply_to(message, "❌ Boss! Khud ko block nahi kar sakte!")
+        
+    if cmd == '/block':
+        users[target_id]['blocked'] = True
+        bot.reply_to(message, f"🚫 **BANNED!**\nAb '{users[target_id]['name']}' bot ka koi bhi feature use nahi kar payega.")
+    else:
+        users[target_id]['blocked'] = False
+        bot.reply_to(message, f"✅ **UNBANNED!**\n'{users[target_id]['name']}' ko wapas azaadi mil gayi sa!")
 
 # 🛒 CHOR BAZAAR KA SAMAAN
 SHOP_ITEMS = {
@@ -262,6 +448,7 @@ def start_cmd(message):
     # VIP Button tayyar karna
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
+    markup.add(InlineKeyboardButton("▶️ Subscribe Freemind Coding", url="https://youtube.com/@freemind_coding?si=MCcJkwA1wuywfFMC"))
     
     # DM (Akele) aur Group ke liye alag-alag VIP message
     if message.chat.type == 'private':
@@ -307,6 +494,344 @@ def top_richest(message):
     
     # parse_mode="Markdown" lagane se font styling apply hogi
     bot.reply_to(message, text, parse_mode="Markdown")
+
+import os
+import subprocess
+import requests
+
+@bot.message_handler(commands=['roast'])
+def roast_cmd(message):
+    # Lock Check
+    if "roast" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    
+    target_name = ""
+    is_admin_target = False
+
+    # 1. Target Dhoondhna (Reply se ya Naam likhne se)
+    if message.reply_to_message:
+        target_name = message.reply_to_message.from_user.first_name
+        # 🚨 ADMIN SHIELD: Agar reply Admin ke message par kiya hai
+        if message.reply_to_message.from_user.id == ADMIN_ID:
+            is_admin_target = True
+    else:
+        parts = message.text.split(maxsplit=1)
+        if len(parts) > 1:
+            target_name = parts[1].strip()
+            # Agar koi direct likh de: /roast admin ya /roast boss
+            admin_names = ["admin", "boss", "owner", "freemind"] 
+            if any(name in target_name.lower() for name in admin_names):
+                is_admin_target = True
+        else:
+            return bot.reply_to(message, "🎤 **Aise likho:**\n`/roast @username` ya kisi ke message par reply karke `/roast` likho!", parse_mode="Markdown")
+
+    # 2. Prompt Set Karna (Dimaag)
+    if is_admin_target:
+        # 🔥 BACKFIRE: Jo admin se panga lega, bot usko hi dhoyega!
+        target_name = message.from_user.first_name # Jisne command daali, uska naam
+        sys_prompt = f"Tera naam Jarvis hai. {target_name} ne Boss (Admin) ko roast karne ki koshish ki. Ab tu ek hardcore desi underground rapper bankar {target_name} ki bhayanak beizzati kar. 4 line ka rap likh, bina gaali ke, par aukaat dikha de. Sirf rap ke lyrics dena."
+        caption_text = f"🚨 **BOSS SE PANGA?** 🚨\n🎤 Target: {target_name} (Ulta pad gaya!)"
+    else:
+        # NORMAL ROAST
+        sys_prompt = f"Tera naam Jarvis hai. Tu ek desi underground rapper hai. Tujhe '{target_name}' ki beizzati (roast) karni hai. 4 line ka tagda aur funny rap likh. Bina gaali ke, par ego tod de. Sirf rap ke bol likhna."
+        caption_text = f"🔥 **DAIMOND BATCH DISS TRACK** 🔥\n🎤 Target: {target_name}"
+
+    # Render ki tijori se Groq ki chaabi nikalna
+    GROQ_API_KEY = os.environ.get('GROQ_KEY')
+    if not GROQ_API_KEY:
+        return bot.reply_to(message, "❌ Boss! Groq ki chaabi (GROQ_KEY) nahi mili!")
+
+    wait_msg = bot.reply_to(message, "🎤 *Beat drop ho rahi hai... Mic check 1-2-3...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_voice')
+
+    try:
+        # 3. Groq LLaMA-3 (Rap Likhwana)
+        headers_chat = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": f"Chal {target_name} ko dhakka maar ke roast kar!"}
+            ]
+        }
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
+        ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
+
+        # 4. Edge-TTS (Rap Record Karna - Speed thodi tez ki hai +10%)
+        safe_reply = ai_reply.replace('"', '').replace("'", "")
+        audio_file = f"roast_{message.message_id}.ogg" 
+        
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '+10%', '--text', safe_reply, '--write-media', audio_file])
+        
+        # 5. Telegram par Final Voice Note bhejna
+        with open(audio_file, "rb") as final_audio:
+            bot.send_voice(message.chat.id, final_audio, caption=caption_text)
+            
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(audio_file)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Mic kharab ho gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
+import os
+import subprocess
+import requests
+
+@bot.message_handler(commands=['reel', 'studio'])
+def make_ai_reel(message):
+    # Lock Check
+    if "reel" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    topic = message.text.replace("/reel", "").replace("/studio", "").strip()
+    if not topic:
+        return bot.reply_to(message, "🎬 **Aise likho:**\n`/reel zindagi mein success aur hard work`", parse_mode="Markdown")
+
+    # Render ki tijori se dono chaabiyan nikalna
+    GROQ_KEY = os.environ.get('GROQ_KEY')
+    HF_KEY = os.environ.get('H')
+    
+    if not GROQ_KEY or not HF_KEY:
+        return bot.reply_to(message, "❌ Boss! Groq ya Hugging Face ki chaabi missing hai!")
+
+    wait_msg = bot.reply_to(message, "🎬 *Daimond Batch Studio action mein hai... Script, Voice aur Camera set ho raha hai sa!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_voice')
+    
+    try:
+        # ==========================================
+        # STEP 1: Groq se Hindi Motivational Shayari Likhwana
+        # ==========================================
+        headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        payload_chat = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
+                {"role": "system", "content": "Tu ek famous motivational speaker aur shayar hai. User jo bhi topic de, us par 4 line ki ekdum aag laga dene wali, dil chhu lene wali Hindi motivational shayari likh. Sirf shayari dena, aur kuch nahi."},
+                {"role": "user", "content": topic}
+            ]
+        }
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload_chat).json()
+        shayari_text = res_chat["choices"][0]["message"]["content"].strip()
+
+        # ==========================================
+        # STEP 2: FLUX AI se Cinematic Photo Banana
+        # ==========================================
+        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
+        # Image ke liye prompt ko English me aur cinematic style me change kiya
+        img_prompt = f"Cinematic, ultra-realistic, highly detailed concept art about {topic}, 8k resolution, dramatic lighting, epic wallpaper"
+        payload_hf = {"inputs": img_prompt}
+        
+        res_img = requests.post(flux_url, headers=headers_hf, json=payload_hf, timeout=60)
+        if res_img.status_code != 200:
+            raise Exception("FLUX ne photo banane mein nakhre kiye!")
+
+        # ==========================================
+        # STEP 3: Edge-TTS se Voice Note Record Karna
+        # ==========================================
+        safe_shayari = shayari_text.replace('"', '').replace("'", "")
+        audio_file = f"reel_{message.message_id}.ogg" 
+        
+        # Madhur ki awaaz, thodi slow aur deep banayi hai pitch badal kar taaki motivational lage
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '-10%', '--text', safe_shayari, '--write-media', audio_file])
+        
+        # ==========================================
+        # STEP 4: Ek sath Magic Bhejna
+        # ==========================================
+        # Pehle HD photo bhejega
+        bot.send_photo(message.chat.id, photo=res_img.content, caption=f"🎬 **Topic:** {topic}")
+        
+        # Theek uske neeche Voice Note bhejega jisme Shayari hai
+        with open(audio_file, "rb") as final_audio:
+            bot.send_voice(message.chat.id, final_audio, caption=f"✨ **Listen to the Vibe:**\n\n{shayari_text}")
+            
+        # Kachra saaf
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(audio_file)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Studio mein power cut ho gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
+import os
+import subprocess
+import requests
+
+@bot.message_handler(commands=['dl', 'insta', 'yt'])
+def download_media(message):
+    # Lock Check
+    if "dl" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    parts = message.text.split(maxsplit=1)
+    if len(parts) < 2:
+        return bot.reply_to(message, "📥 **Aise likho:**\n`/dl [Video ka Link]`\n*(Instagram, YouTube, Twitter kuch bhi chalega sa!)*", parse_mode="Markdown")
+        
+    link = parts[1].strip()
+    wait_msg = bot.reply_to(message, "⏳ *Khufiya tarike se video chura raha hu, 5-10 second ruk sa...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_video')
+    
+    file_name = f"video_{message.message_id}.mp4"
+    
+    # ⚙️ yt-dlp ki VIP Settings
+    ydl_opts = {
+        'outtmpl': file_name,
+        'format': 'best[ext=mp4]/best', # Telegram ko MP4 pasand hai
+        'noplaylist': True,
+        'quiet': True,
+        'max_filesize': 45000000 # 🚨 Telegram bot API ki limit 50MB hoti hai, isliye 45MB max rakha hai
+    }
+    
+    try:
+        # 1. Background mein video download karna
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([link])
+            
+        # 2. Telegram par wapas bhejna
+        with open(file_name, 'rb') as video_file:
+            bot.send_video(message.chat.id, video_file, caption="📥 **Daimond Batch Downloader**\n✅ *Ye lijiye sa aapka video!*")
+            
+        # 3. Kachra saaf karna
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(file_name)
+        
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "max_filesize" in error_msg or "too large" in error_msg:
+            bot.edit_message_text("❌ Video bahut bada hai sa! Telegram par max 50MB hi bhej sakte hain (Shorts/Reels try karo).", message.chat.id, wait_msg.message_id)
+        elif "private" in error_msg or "unsupported" in error_msg:
+            bot.edit_message_text("❌ Video private hai ya link galat hai sa!", message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text("❌ Video churane mein fail ho gaya sa! Wapas try karo.", message.chat.id, wait_msg.message_id)
+            
+        # Agar error ke baad file ban gayi ho toh delete kar do
+        if os.path.exists(file_name):
+            os.remove(file_name)
+            
+# ==========================================
+# 📰 THE AI NEWS ANCHOR (Subah 8 aur Raat 8)
+# ==========================================
+def auto_news_broadcast():
+    # Agar bot kisi group mein nahi hai, toh news kisko dega?
+    if not active_groups:
+        return
+
+    # Render ki tijori se Hugging Face ki chaabi nikalna
+    HF_KEY = os.environ.get('H')
+    if not HF_KEY: 
+        print("HF Key nahi mili!")
+        return
+
+    try:
+        # 1. Google News India (Hindi) se taaza khabarein churana
+        # feedparser direct internet se real-time news nikalta hai
+        feed = feedparser.parse("https://news.google.com/rss?hl=hi&gl=IN&ceid=IN:hi")
+        headlines = [entry.title for entry in feed.entries[:3]] # Top 3 news
+
+        if not headlines: return
+
+        # Anchor ki Script tayyar karna
+        script = f"नमस्कार! डायमंड बैच न्यूज़ में आपका स्वागत है। आज की सबसे बड़ी खबरें इस प्रकार हैं... पहली खबर: {headlines[0]}. दूसरी खबर: {headlines[1]}. तीसरी खबर: {headlines[2]}. ताज़ा खबरों के लिए जुड़े रहें, आपका समय शुभ हो!"
+
+        # 2. Edge-TTS se News Anchor ki Voice Record karna
+        audio_file = "news_bulletin.ogg"
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '+0%', '--text', script, '--write-media', audio_file])
+
+        # 3. FLUX AI se Ekdum Asli TV Studio Background Banana
+        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
+        img_prompt = "Professional TV news anchor studio desk with BREAKING NEWS graphics, cinematic lighting, 8k resolution, highly detailed"
+        res_img = requests.post(flux_url, headers=headers_hf, json={"inputs": img_prompt}, timeout=60)
+
+        # 4. Sabhi Active Groups mein Blast Karna!
+        for gid in list(active_groups):
+            try:
+                # Pehle Studio ki photo bhejega
+                bot.send_photo(gid, photo=res_img.content, caption="📰 **DAIMOND BATCH LIVE NEWS** 📰\n*(Powered by AI Anchor)*")
+                # Fir audio bhejega
+                with open(audio_file, "rb") as final_audio:
+                    bot.send_voice(gid, final_audio, caption="🎙️ *Aaj Ki Taaza Khabar sunne ke liye Play karein!*")
+            except Exception as e:
+                print(f"Group {gid} mein bhejne me error: {e}")
+
+        # Kachra saaf
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
+
+    except Exception as e:
+        print(f"News Anchor System Error: {e}")
+
+@bot.message_handler(commands=['video'])
+def make_ai_video(message):
+    # Lock Check
+    if "video" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    topic = message.text.replace("/video", "").strip()
+    if not topic:
+        return bot.reply_to(message, "🎬 **Aise likho:**\n`/video zindagi mein success aur hard work`", parse_mode="Markdown")
+
+    # Render ki tijori se dono chaabiyan nikalna
+    GROQ_KEY = os.environ.get('GROQ_KEY')
+    HF_KEY = os.environ.get('H')
+    
+    if not GROQ_KEY or not HF_KEY:
+        return bot.reply_to(message, "❌ Boss! Groq ya Hugging Face ki chaabi missing hai!")
+
+    wait_msg = bot.reply_to(message, "🎬 *Studio action mein hai... Script, Voice aur Camera set ho raha hai sa!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_voice')
+    
+    try:
+        # ==========================================
+        # STEP 1: Groq se Hindi Motivational Shayari Likhwana
+        # ==========================================
+        headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        payload_chat = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
+                {"role": "system", "content": "Tu ek famous motivational speaker aur shayar hai. User jo bhi topic de, us par 4 line ki ekdum aag laga dene wali, dil chhu lene wali Hindi motivational shayari likh. Sirf shayari dena, aur kuch nahi."},
+                {"role": "user", "content": topic}
+            ]
+        }
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload_chat).json()
+        shayari_text = res_chat["choices"][0]["message"]["content"].strip()
+
+        # ==========================================
+        # STEP 2: FLUX AI se Cinematic Photo Banana
+        # ==========================================
+        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
+        # Image ke liye prompt ko English me aur cinematic style me change kiya
+        img_prompt = f"Cinematic, ultra-realistic, highly detailed concept art about {topic}, 8k resolution, dramatic lighting, epic wallpaper"
+        payload_hf = {"inputs": img_prompt}
+        
+        res_img = requests.post(flux_url, headers=headers_hf, json=payload_hf, timeout=60)
+        if res_img.status_code != 200:
+            raise Exception("FLUX ne photo banane mein nakhre kiye!")
+
+        # ==========================================
+        # STEP 3: Edge-TTS se Voice Note Record Karna
+        # ==========================================
+        safe_shayari = shayari_text.replace('"', '').replace("'", "")
+        audio_file = f"video_{message.message_id}.ogg" 
+        
+        # Madhur ki awaaz, thodi slow aur deep banayi hai pitch badal kar taaki motivational lage
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '-10%', '--text', safe_shayari, '--write-media', audio_file])
+        
+        # ==========================================
+        # STEP 4: Ek sath Magic Bhejna
+        # ==========================================
+        # Pehle HD photo bhejega
+        bot.send_photo(message.chat.id, photo=res_img.content, caption=f"🎬 **Topic:** {topic}")
+        
+        # Theek uske neeche Voice Note bhejega jisme Shayari hai
+        with open(audio_file, "rb") as final_audio:
+            bot.send_voice(message.chat.id, final_audio, caption=f"✨ **Listen to the Vibe:**\n\n{shayari_text}")
+            
+        # Kachra saaf
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(audio_file)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Studio mein power cut ho gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
@@ -397,7 +922,7 @@ def generate_image(message):
     wait_msg = bot.reply_to(message, "⏳ *Stable Diffusion XL aapki photo bana raha hai, 10-20 second wait karo sa...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'upload_photo')
     
-    API_URL = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0"
+    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
     headers = {"Authorization": f"Bearer {HF_KEY}"}
     payload = {"inputs": prompt}
     
@@ -446,6 +971,119 @@ def dance_cmd(message):
         bot.send_animation(message.chat.id, current_dance_gif, caption="🕺 **Balle Balle! Party Time!** 💃", parse_mode="Markdown")
     except Exception as e:
         bot.reply_to(message, "🕺 **Balle Balle! Party Time!** 💃\n*(GIF load nahi hua sa!)*", parse_mode="Markdown")
+
+import os
+import subprocess
+import requests
+
+@bot.message_handler(commands=['sketch'])
+def make_sketch(message):
+    # Lock Check
+    if "sketch" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    # Check karna ki reply photo par hai ya nahi
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return bot.reply_to(message, "🎨 **Aise likho:**\nKisi bhi photo par reply karke `/sketch` likho sa!", parse_mode="Markdown")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Pencil aur paper nikal raha hu... 2 second ruk sa!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    try:
+        # 1. Telegram se High Quality Photo Download Karna
+        file_id = message.reply_to_message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # Clash rokne ke liye unique file name
+        input_path = f"input_{message.message_id}.jpg"
+        output_path = f"sketch_{message.message_id}.jpg"
+        
+        with open(input_path, 'wb') as new_file:
+            new_file.write(downloaded_file)
+            
+        # 2. 🧠 OpenCV ka JADU (Local Image Processing - No API)
+        img = cv2.imread(input_path)
+        
+        # Rangin photo ko Black & White (Grayscale) karna
+        gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Photo ke colors ulte (invert) karna (Negative image)
+        invert_img = cv2.bitwise_not(gray_img)
+        
+        # Blur effect daalna (Pencil jaisa dhundhla pan lane ke liye)
+        blur_img = cv2.GaussianBlur(invert_img, (21, 21), 0)
+        
+        # Asli magic: Color Dodge blend se Sketch tayyar karna
+        sketch_img = cv2.divide(gray_img, 255 - blur_img, scale=256.0)
+        
+        # Sketch ko save karna
+        cv2.imwrite(output_path, sketch_img)
+        
+        # 3. Telegram par Wapas bhejna
+        with open(output_path, "rb") as final_photo:
+            bot.send_photo(message.chat.id, final_photo, caption="🎨 **Daimond Batch Artist**\n✏️ *Ye rahi aapki Pencil Sketch!*")
+            
+        # 4. Kachra saaf (Server ki memory full na ho)
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(input_path)
+        os.remove(output_path)
+        
+    except Exception as e:
+        bot.edit_message_text(f"❌ Pencil ki nok toot gayi sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
+@bot.message_handler(commands=['ask'])
+def ask_ai_voice(message):
+    # Lock Check
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    
+    prompt = message.text.replace("/ask", "").strip()
+    if not prompt:
+        return bot.reply_to(message, "🗣️ **Aise likho:**\n`/ask Duniya ka sabse ameer aadmi kon hai?`", parse_mode="Markdown")
+        
+    # Render ki tijori se Groq ki chaabi nikalna
+    GROQ_API_KEY = os.environ.get('GROQ_KEY')
+    if not GROQ_API_KEY:
+        return bot.reply_to(message, "❌ Boss! Groq ki chaabi (GROQ_KEY) nahi mili!")
+
+    wait_msg = bot.reply_to(message, "⏳ *Jarvis dimaag laga raha hai aur gala saaf kar raha hai...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'record_voice')
+    
+    try:
+        # 1. Groq LLaMA-3 (Dimaag lagana aur Text Answer nikalna)
+        headers_chat = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "model": "llama-3.1-8b-instant",
+            "messages": [
+                {"role": "system", "content": "Tera naam Jarvis hai. Tu Daimond Batch ka AI assistant hai. Hamesha sirf 2-3 line mein aur Hinglish main jawab dena, taaki bolne mein zyada lamba na lage."},
+                {"role": "user", "content": prompt}
+            ]
+        }
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
+        
+        if res_chat.status_code != 200:
+            raise Exception("API server thoda busy hai sa!")
+            
+        ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
+
+        # 2. Edge-TTS (Text ko Awaaz mein badalna)
+        safe_reply = ai_reply.replace('"', '').replace("'", "")
+        # Har message ke liye alag file name taaki group me clash na ho
+        audio_file = f"jarvis_{message.message_id}.ogg" 
+        
+        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--text', safe_reply, '--write-media', audio_file])
+        
+        # 3. Telegram par Final Voice Note bhejna
+        with open(audio_file, "rb") as final_audio:
+            bot.send_voice(message.chat.id, final_audio, caption=f"🎙️ **Jarvis AI**\n🗣️ *Aapka sawal:* {prompt}")
+            
+        # 4. Kachra saaf (Memory bachane ke liye)
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        os.remove(audio_file)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Jarvis ko khasi aa gayi sa! Error: {e}", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
@@ -589,6 +1227,105 @@ def rob_cmd(message):
     chakku_text = f"\n🔪 Chakku Bonus: +200 Rs" if bonus else ""
     msg = f"🥷 **MAHA-CHOR!** 🥷\n\n**{r['name']}** ne \n💸 loota **{t['name']}** ko\n\n💰 Chori: {loot_amt} Rs\n🤑 Mila (Tax kat ke): {net_loot - bonus} Rs{chakku_text}"
     bot.reply_to(message, msg)
+
+@bot.message_handler(commands=['photo'])
+def remove_background_cmd(message):
+    # Lock Check
+    if "photo" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    # Check karna ki reply photo par hai ya nahi
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return bot.reply_to(message, "📸 **Aise likho:**\nKisi bhi photo par reply karke `/photo` likho sa!", parse_mode="Markdown")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Background mita raha hu... 2-3 second ruk sa!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    try:
+        # 1. Telegram se High Quality Photo Download Karna (Memory mein)
+        file_id = message.reply_to_message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # input_path aur output_path banane ki zaroorat nahi, hum direct memory me kaam karenge
+        
+        # 2. 🧠 rembg ka JADU (Local Background Removal - No API)
+        # Hum bytes ko input denge aur bytes hi output lenge (Fast aur clean)
+        output_data = remove(downloaded_file)
+        
+        # 3. Telegram par Wapas bhejna (As a Document taaki transparency rahe)
+        # Agar photo ke roop me bhejenge toh transparency khatam ho sakti hai
+        # Hum BytesIO use karenge taaki file save na karni pade
+        from io import BytesIO
+        final_png = BytesIO(output_data)
+        final_png.name = f"removed_bg_{message.message_id}.png"
+        
+        bot.send_document(message.chat.id, final_png, caption="📸 **Daimond Batch BG Remover**\n✅ *Background ekdum saaf kar diya hai sa!*")
+            
+        # 4. Kachra saaf (wait message delete kar do)
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        
+    except Exception as e:
+        # Pehli baar run hone par rembg model download karta hai, thoda time le sakta hai
+        if "timeout" in str(e).lower():
+            bot.edit_message_text("❌ Pehli baar mein thoda time lag raha hai sa! 1-2 minute baad wapas try karo, model load ho raha hai.", message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ Koshish ki par background nahi hata sa! Error: {e}", message.chat.id, wait_msg.message_id)
+            
+@bot.message_handler(commands=['read', 'ocr'])
+def read_image_text(message):
+    # Lock Check
+    if "read" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+        
+    # Check karna ki kisi photo par reply kiya hai ya nahi
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return bot.reply_to(message, "📸 **Aise likho:**\nKisi bhi notes, kitab ya screenshot ki photo par reply karke `/read` likho sa!", parse_mode="Markdown")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Aankhein faad ke photo padh raha hu... 2 second ruk sa!*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'typing')
+    
+    try:
+        # 1. Telegram se High Quality Photo Download Karna
+        file_id = message.reply_to_message.photo[-1].file_id
+        file_info = bot.get_file(file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # Temp file banana
+        input_path = f"notes_{message.message_id}.jpg"
+        with open(input_path, 'wb') as new_file:
+            new_file.write(downloaded_file)
+            
+        # 2. 🧠 pytesseract ka JADU (Photo se Text nikalna)
+        img = Image.open(input_path)
+        extracted_text = pytesseract.image_to_string(img).strip()
+        
+        if not extracted_text:
+            bot.edit_message_text("❌ Is photo mein bot ko koi saaf text nahi dikha sa! Photo thodi blur hogi.", message.chat.id, wait_msg.message_id)
+            os.remove(input_path)
+            return
+            
+        # Text lamba ho toh limit lagana (Telegram ki limit ke liye)
+        if len(extracted_text) > 1500:
+            extracted_text = extracted_text[:1500] + "..."
+            
+        # 3. 🌍 Deep-Translator ka JADU (Direct Hindi mein badalna)
+        bot.edit_message_text("⏳ *Text mil gaya! Ab isko Hindi mein badal raha hu...*", message.chat.id, wait_msg.message_id, parse_mode="Markdown")
+        translated_text = GoogleTranslator(source='auto', target='hi').translate(extracted_text)
+        
+        # 4. Final VIP Message
+        final_msg = f"👁️ **DAIMOND BATCH SCANNER** 👁️\n━━━━━━━━━━━━━━━━━━━\n"
+        final_msg += f"📄 **Asli Text (Original):**\n`{extracted_text}`\n\n"
+        final_msg += f"🇮🇳 **Hindi Translation:**\n`{translated_text}`\n"
+        final_msg += f"━━━━━━━━━━━━━━━━━━━"
+        
+        bot.edit_message_text(final_msg, message.chat.id, wait_msg.message_id, parse_mode="Markdown")
+        
+        # 5. Kachra saaf (Memory bachane ke liye)
+        os.remove(input_path)
+        
+    except Exception as e:
+        bot.edit_message_text(f"❌ Bot ka chashma toot gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)            
 
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
@@ -776,15 +1513,22 @@ def make_supreme_paper(segments, start_color_idx):
     draw = ImageDraw.Draw(img)
 
     MARGIN_X = 120
-    START_Y = 180  # 🔥 TOP MARGIN FIX (Upar jagah chhutegi)
-    LINE_SPACING = 60
+    TOP_MARGIN_Y = 200 # 🔥 NAYA: Horizontal Top Margin (Upar ki laal line)
+    START_BLUE_LINE = 280 # Pehli blue line top margin ke neeche se
+    LINE_SPACING = 80 # 🔥 NAYA: Khuli-khuli lines taaki bada text fit aaye
 
-    # Red & Blue Lines
-    draw.line([(MARGIN_X, 0), (MARGIN_X, 1100)], fill=(255, 100, 100), width=2)
-    for y in range(START_Y, 1100, LINE_SPACING):
+    # 1. Vertical Red Line (Bayein taraf)
+    draw.line([(MARGIN_X, 0), (MARGIN_X, 1100)], fill=(255, 100, 100), width=3)
+    
+    # 2. Horizontal Red Line (Upar ka margin boundary)
+    draw.line([(0, TOP_MARGIN_Y), (800, TOP_MARGIN_Y)], fill=(255, 100, 100), width=3)
+
+    # 3. Blue Lines (Sirf top margin ke neeche se draw hogi)
+    for y in range(START_BLUE_LINE, 1100, LINE_SPACING):
         draw.line([(0, y), (800, y)], fill=(150, 200, 255), width=2)
 
-    y_text = START_Y - 50 # Text line ke theek upar baithega
+    # Text line ke theek upar baithega
+    y_text = START_BLUE_LINE - 75 
     color_idx = start_color_idx
 
     for seg in segments:
@@ -798,28 +1542,30 @@ def make_supreme_paper(segments, start_color_idx):
                 with open(font_path, 'wb') as f: f.write(res.content)
             except: pass
 
-        try: font = ImageFont.truetype(font_path, 50) # 🔥 SABKI SIZE BARABAR
+        # 🔥 FONT SIZE FIX: Sabko bada aur asani se padhne layakh banaya (Size 70)
+        try: font = ImageFont.truetype(font_path, 70) 
         except: font = ImageFont.load_default()
 
-        lines = textwrap.wrap(seg["text"], width=32)
+        # Word wrap kam kiya taaki bade fonts page se bahar na nikle
+        lines = textwrap.wrap(seg["text"], width=26)
         ink = INK_COLORS[COLOR_KEYS[color_idx]]["rgb"]
 
         for i, line in enumerate(lines):
             if y_text > 1050: break
             
-            # 🔥 SMART SERIAL NUMBER DETECTION (Margin ke andar likhega)
+            # 🔥 SMART SERIAL NUMBER DETECTION (Margin ke andar)
             serial_match = re.match(r'^([A-Za-z0-9]+[\.\)])\s*(.*)', line)
             if serial_match and i == 0:
                 serial = serial_match.group(1)
                 rest_of_line = serial_match.group(2)
-                draw.text((MARGIN_X - 80, y_text), serial, font=font, fill=ink) # Andar
+                draw.text((MARGIN_X - 90, y_text), serial, font=font, fill=ink) # Andar
                 draw.text((MARGIN_X + 20, y_text), rest_of_line, font=font, fill=ink) # Bahar
             else:
                 draw.text((MARGIN_X + 20, y_text), line, font=font, fill=ink)
             
             y_text += LINE_SPACING
         
-        # 🔥 MULTI-COLOR LOGIC: Agle text ke liye color badal jayega
+        # 🔥 MULTI-COLOR LOGIC
         color_idx = (color_idx + 1) % len(COLOR_KEYS)
         if y_text > 1050: break
 
@@ -1113,6 +1859,54 @@ def rose_features(message):
     except Exception as e: 
         bot.reply_to(message, "❌ **Error!** Ya toh mere paas Admin Power (Ban/Mute) nahi hai, ya jisko saza de rahe ho wo bhi ek dusra Admin hai!")
 
+# ==========================================
+# 🛡️ THE HOLY SHIELD: ANTI-PORN AI SCANNER
+# ==========================================
+@bot.message_handler(content_types=['photo', 'video'])
+def anti_nsfw_scanner(message):
+    # Admin ki photos scan nahi hongi
+    if message.from_user.id == ADMIN_ID: return
+    
+    # Render ki tijori se Hugging Face ki chaabi nikalna
+    HF_KEY = os.environ.get('H')
+    if not HF_KEY: return
+
+    # Agar photo hai toh scan karo (Video processing heavy hoti hai isliye abhi photo par focus hai)
+    if message.content_type == 'photo':
+        try:
+            # Sabse high quality wali photo download karna
+            file_info = bot.get_file(message.photo[-1].file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            
+            # 🔥 FALCON AI: NSFW Detection Model
+            API_URL = "https://api-inference.huggingface.co/models/Falconsai/nsfw_image_detection"
+            headers = {"Authorization": f"Bearer {HF_KEY}"}
+            
+            res = requests.post(API_URL, headers=headers, data=downloaded_file)
+            
+            if res.status_code == 200:
+                result = res.json()
+                # Result ko process karna
+                if isinstance(result, list) and isinstance(result[0], list):
+                    result = result[0]
+                
+                is_nsfw = False
+                for item in result:
+                    # Agar NSFW score 70% (0.7) se zyada hai, toh kachra hai!
+                    if item['label'] == 'nsfw' and item['score'] > 0.70:
+                        is_nsfw = True
+                        break
+                        
+                if is_nsfw:
+                    bot.delete_message(message.chat.id, message.message_id)
+                    warn_msg = bot.send_message(message.chat.id, f"🚨 **HOLY SHIELD ACTIVATED!** 🚨\n\n[{message.from_user.first_name}](tg://user?id={message.from_user.id}) Bhai, group mein gandagi allow nahi hai! Tera message delete kar diya gaya hai.", parse_mode="Markdown")
+                    # 5 second baad warning message bhi delete kar do taaki chat saaf rahe
+                    time.sleep(5)
+                    bot.delete_message(message.chat.id, warn_msg.message_id)
+                    
+        except Exception as e:
+            pass # Background mein chup chap fail ho jayega, normal photo ko nahi rokega
+
 @bot.callback_query_handler(func=lambda call: True)
 def callbacks(call):
     d = call.data
@@ -1320,6 +2114,15 @@ def handle_all(message):
     if not is_prv: active_groups.add(message.chat.id)
     uid = message.from_user.id
     txt = message.text.lower()
+    
+    # 🛑 SPAM & PORN TEXT FILTER
+    bad_words = ["pornhub.com", "xvideos.com", "xnxx.com", "xxx", "nude", "sex video", "brazzers"]
+    if any(word in txt for word in bad_words) and uid != ADMIN_ID:
+        try:
+            bot.delete_message(message.chat.id, message.message_id)
+            bot.send_message(message.chat.id, f"🚫 **Link Blocked!**\n{message.from_user.first_name}, yahan ye sab kachra link mat bhej!")
+            return # Aage AI ko reply karne se rok dega
+        except: pass
     bot_uname = f"@{bot.get_me().username.lower()}"
     
     is_men = bot_uname in txt
@@ -1338,4 +2141,15 @@ def handle_all(message):
 if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
+    
+    # 🚨 NAYA: NEWS ANCHOR SCHEDULER (India Time ke hisaab se)
+    # Ye background mein chup-chap time dekhta rahega
+    scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
+    # Subah 8:00 AM ke liye
+    scheduler.add_job(auto_news_broadcast, 'cron', hour=8, minute=0)
+    # Raat 8:00 PM (20:00) ke liye
+    scheduler.add_job(auto_news_broadcast, 'cron', hour=20, minute=0)
+    scheduler.start()
+    
+    # Bot ko lagatar chalane ke liye
     bot.infinity_polling()
