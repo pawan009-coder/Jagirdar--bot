@@ -4,3 +4,5 @@ flask
 pymongo
 pillow
 edge-tts
+opencv-python-headless
+numpy
