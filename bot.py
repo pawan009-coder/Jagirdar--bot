@@ -615,7 +615,7 @@ def make_ai_reel(message):
         # ==========================================
         # STEP 2: FLUX AI se Cinematic Photo Banana
         # ==========================================
-        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        flux_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
         # Image ke liye prompt ko English me aur cinematic style me change kiya
         img_prompt = f"Cinematic, ultra-realistic, highly detailed concept art about {topic}, 8k resolution, dramatic lighting, epic wallpaper"
@@ -736,7 +736,7 @@ def auto_news_broadcast():
         subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '+0%', '--text', script, '--write-media', audio_file])
 
         # 3. FLUX AI se Ekdum Asli TV Studio Background Banana
-        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        flux_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
         img_prompt = "Professional TV news anchor studio desk with BREAKING NEWS graphics, cinematic lighting, 8k resolution, highly detailed"
         res_img = requests.post(flux_url, headers=headers_hf, json={"inputs": img_prompt}, timeout=60)
@@ -797,7 +797,7 @@ def make_ai_video(message):
         # ==========================================
         # STEP 2: FLUX AI se Cinematic Photo Banana
         # ==========================================
-        flux_url = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+        flux_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
         # Image ke liye prompt ko English me aur cinematic style me change kiya
         img_prompt = f"Cinematic, ultra-realistic, highly detailed concept art about {topic}, 8k resolution, dramatic lighting, epic wallpaper"
@@ -922,7 +922,7 @@ def generate_image(message):
     wait_msg = bot.reply_to(message, "⏳ *Stable Diffusion XL aapki photo bana raha hai, 10-20 second wait karo sa...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'upload_photo')
     
-    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+    API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
     headers = {"Authorization": f"Bearer {HF_KEY}"}
     payload = {"inputs": prompt}
     
