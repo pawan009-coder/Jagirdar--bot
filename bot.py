@@ -81,6 +81,7 @@ users = {}
 active_groups = set()
 pending_loans = {}
 xo_games = {}
+sps_games = {}
 poll_voters = set()
 pending_says = {}
 pending_papers = {}
@@ -644,6 +645,29 @@ def revive_cmd(message):
     # 🔥 VIP Legend Message
     msg = f"💉 **SANJEEVANI BOOTI!** 💉\n\n**{r['name']}** ne \n💖 zinda kiya **{t['name']}** ko\n\n🏆 Level: {get_level(r['bal'])}\n💸 Kharcha: 700 Rs"
     bot.reply_to(message, msg)
+
+@bot.message_handler(commands=['sps'])
+def sps_start(message):
+    if "sps" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    try:
+        amt = int(message.text.split()[1])
+        if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh sa!")
+        u = get_user(message.from_user)
+        if u['bal'] < amt: return bot.reply_to(message, "Paise kam hain aapke paas!")
+        
+        gid = str(message.message_id)
+        # Game ka data save karna
+        sps_games[gid] = {
+            "p1": message.from_user.id, "p1_name": message.from_user.first_name, 
+            "p2": None, "p2_name": None, 
+            "amt": amt, "p1_choice": None, "p2_choice": None
+        }
+        
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("⚔️ Join Game", callback_data=f"sps_join_{gid}"))
+        bot.reply_to(message, f"🪨📄✂️ **Stone Paper Scissors**\n💰 Bet Amount: {amt} Rs\n\n**{message.from_user.first_name}** ne challenge diya hai! Player 2 ka wait ho raha hai...", reply_markup=markup, parse_mode="Markdown")
+    except: 
+        bot.reply_to(message, "❌ Sahi Format: `/sps 100`", parse_mode="Markdown")
 
 @bot.message_handler(commands=['loan', 'udhar'])
 def loan_cmd(message):
