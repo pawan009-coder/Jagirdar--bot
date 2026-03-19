@@ -698,31 +698,7 @@ FONTS_URL = {
 if not os.path.exists('assets'):
     os.makedirs('assets')
 
-def make_paper_image(text, style_num):
-    # Blank White Kagaz (Resolution 800x1100)
-    img = Image.new('RGB', (800, 1100), color=(255, 255, 255))
-    draw = ImageDraw.Draw(img)
 
-    # Red margin aur Blue lines
-    draw.line([(100, 0), (100, 1100)], fill=(255, 150, 150), width=2)
-    line_spacing = 50
-    for y in range(100, 1100, line_spacing):
-        draw.line([(0, y), (800, y)], fill=(200, 220, 255), width=2)
-
-    # Font set karna (Agar 1-30 me kuch aur dala toh Default 1 lagega)
-    font_url = FONTS_URL.get(str(style_num), FONTS_URL["1"])
-    font_name = font_url.split('/')[-1]
-    font_path = f"assets/{font_name}"
-
-    # Ek hi baar download karega, uske baad hamesha turant chalega
-    if not os.path.exists(font_path):
-        try:
-            res = requests.get(font_url)
-            with open(font_path, 'wb') as f: f.write(res.content)
-        except: pass
-
-    try: font = ImageFont.truetype(font_path, 40)
-    except: font = ImageFont.load_default()
 
     # Text ko kagaz par set karna
     lines = textwrap.wrap(text, width=35) 
@@ -761,7 +737,103 @@ def generate_paper(message):
         return bot.reply_to(message, "📝 **Aise likho:**\n`/paper text` ya `/paper 30 text`\n(1 se 30 tak koi bhi writing style chuno!)", parse_mode="Markdown")
 
     wait_msg = bot.reply_to(message, f"⏳ *Kagaz pe blue ink se likh raha hu (Style #{style})... 2 second ruk sa!*", parse_mode="Markdown")
-    bot.send_chat_action(message.chat.id, 'upload_photo')
+    bot.send_chat_action(message.chatdef parse_paper_text(raw_text):
+    # Multi-command ko todne ka logic
+    parts = raw_text.split('/paper')
+    segments = []
+    for p in parts:
+        p = p.strip()
+        if not p: continue
+        tokens = p.split(maxsplit=1)
+        style = "1"
+        text = p
+        if tokens[0].isdigit():
+            style = tokens[0]
+            text = tokens[1] if len(tokens) > 1 else ""
+        if text.strip():
+            segments.append({"style": style, "text": text.strip()})
+    return segments
+
+def make_supreme_paper(segments, start_color_idx):
+    img = Image.new('RGB', (800, 1100), color=(255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    MARGIN_X = 120
+    START_Y = 180  # 🔥 TOP MARGIN FIX (Upar jagah chhutegi)
+    LINE_SPACING = 60
+
+    # Red & Blue Lines
+    draw.line([(MARGIN_X, 0), (MARGIN_X, 1100)], fill=(255, 100, 100), width=2)
+    for y in range(START_Y, 1100, LINE_SPACING):
+        draw.line([(0, y), (800, y)], fill=(150, 200, 255), width=2)
+
+    y_text = START_Y - 50 # Text line ke theek upar baithega
+    color_idx = start_color_idx
+
+    for seg in segments:
+        font_url = FONTS_URL.get(str(seg["style"]), FONTS_URL["1"])
+        font_name = font_url.split('/')[-1]
+        font_path = f"assets/{font_name}"
+
+        if not os.path.exists(font_path):
+            try:
+                res = requests.get(font_url)
+                with open(font_path, 'wb') as f: f.write(res.content)
+            except: pass
+
+        try: font = ImageFont.truetype(font_path, 50) # 🔥 SABKI SIZE BARABAR
+        except: font = ImageFont.load_default()
+
+        lines = textwrap.wrap(seg["text"], width=32)
+        ink = INK_COLORS[COLOR_KEYS[color_idx]]["rgb"]
+
+        for i, line in enumerate(lines):
+            if y_text > 1050: break
+            
+            # 🔥 SMART SERIAL NUMBER DETECTION (Margin ke andar likhega)
+            serial_match = re.match(r'^([A-Za-z0-9]+[\.\)])\s*(.*)', line)
+            if serial_match and i == 0:
+                serial = serial_match.group(1)
+                rest_of_line = serial_match.group(2)
+                draw.text((MARGIN_X - 80, y_text), serial, font=font, fill=ink) # Andar
+                draw.text((MARGIN_X + 20, y_text), rest_of_line, font=font, fill=ink) # Bahar
+            else:
+                draw.text((MARGIN_X + 20, y_text), line, font=font, fill=ink)
+            
+            y_text += LINE_SPACING
+        
+        # 🔥 MULTI-COLOR LOGIC: Agle text ke liye color badal jayega
+        color_idx = (color_idx + 1) % len(COLOR_KEYS)
+        if y_text > 1050: break
+
+    bio = io.BytesIO()
+    bio.name = 'paper.jpg'
+    img.save(bio, 'JPEG')
+    bio.seek(0)
+    return bio
+
+@bot.message_handler(commands=['paper'])
+def paper_cmd(message):
+    if "paper" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    
+    raw_text = message.text
+    if message.reply_to_message and message.reply_to_message.text:
+        raw_text += " " + message.reply_to_message.text
+        
+    segments = parse_paper_text(raw_text)
+    if not segments:
+        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper 1 Hello` ya `/paper 2 Hii /paper 5 Bye`", parse_mode="Markdown")
+
+    msg_id = str(message.message_id)
+    pending_papers[msg_id] = {"chat_id": message.chat.id, "segments": segments}
+
+    # 9 Buttons banana
+    markup = InlineKeyboardMarkup(row_width=3)
+    btns = [InlineKeyboardButton(c["name"], callback_data=f"pcolor_{msg_id}_{idx}") for idx, c in enumerate(INK_COLORS.values())]
+    markup.add(*btns)
+    
+    bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup).id, 'upload_photo')
     
     try:
         photo_stream = make_paper_image(user_text, style)
