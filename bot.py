@@ -1199,6 +1199,76 @@ def callbacks(call):
         bot.answer_callback_query(call.id, f"🎉 {item['name']} khareed liya!", show_alert=True)
         bot.edit_message_text(f"✅ Wah ! Aapne **{item['name']}** khareed liya hai {item['price']} Rs mein!", call.message.chat.id, call.message.message_id)    
 
+    elif d.startswith("sps_join_"):
+        gid = d.split("_")[2]
+        if gid not in sps_games: return bot.answer_callback_query(call.id, "Game expire ho gaya sa!", show_alert=True)
+        g = sps_games[gid]
+        
+        if uid == g['p1']: return bot.answer_callback_query(call.id, "Khud ke sath khelega kya?", show_alert=True)
+        u_data = get_user(u)
+        if u_data['bal'] < g['amt']: return bot.answer_callback_query(call.id, "Aapke paas paise kam hain sa!", show_alert=True)
+        
+        # Dono ke paise kaat lo aur P2 ko game mein add kar lo
+        g['p2'] = uid
+        g['p2_name'] = u.first_name
+        users[g['p1']]['bal'] -= g['amt']
+        u_data['bal'] -= g['amt']
+        
+        markup = InlineKeyboardMarkup(row_width=3)
+        markup.add(
+            InlineKeyboardButton("🪨 Stone", callback_data=f"sps_c_{gid}_stone"),
+            InlineKeyboardButton("📄 Paper", callback_data=f"sps_c_{gid}_paper"),
+            InlineKeyboardButton("✂️ Scissor", callback_data=f"sps_c_{gid}_scissor")
+        )
+        bot.edit_message_text(f"🪨📄✂️ **Game Started!**\n💰 Bet: {g['amt']} Rs\n\n**{g['p1_name']}** VS **{g['p2_name']}**\n\nDonon jaldi apna weapon chuno (Kisine kya chuna hai, wo result aane par hi dikhega)!", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+    elif d.startswith("sps_c_"):
+        _, _, gid, choice = d.split("_")
+        if gid not in sps_games: return bot.answer_callback_query(call.id, "Game khatam ho chuka hai!", show_alert=True)
+        g = sps_games[gid]
+        
+        if uid != g['p1'] and uid != g['p2']: return bot.answer_callback_query(call.id, "Bhai tu spectator hai, ye game unka hai!", show_alert=True)
+        
+        # User ka choice record karna
+        if uid == g['p1']:
+            if g['p1_choice']: return bot.answer_callback_query(call.id, "Tune pehle hi chun liya hai, dusre ka wait kar!", show_alert=True)
+            g['p1_choice'] = choice
+            bot.answer_callback_query(call.id, f"Aapne {choice} chuna!")
+        else:
+            if g['p2_choice']: return bot.answer_callback_query(call.id, "Tune pehle hi chun liya hai, dusre ka wait kar!", show_alert=True)
+            g['p2_choice'] = choice
+            bot.answer_callback_query(call.id, f"Aapne {choice} chuna!")
+            
+        # Agar donon ne chun liya toh Result nikalo
+        if g['p1_choice'] and g['p2_choice']:
+            c1, c2 = g['p1_choice'], g['p2_choice']
+            win_amt = g['amt'] * 2
+            lose_return = int(g['amt'] * 0.5) # Harne wale ko aadha wapas
+            
+            emoji_map = {"stone": "🪨", "paper": "📄", "scissor": "✂️"}
+            e1, e2 = emoji_map[c1], emoji_map[c2]
+            
+            res_text = f"🪨📄✂️ **RESULT TIME**\n\n**{g['p1_name']}** ({e1}) 🆚 **{g['p2_name']}** ({e2})\n\n"
+            
+            if c1 == c2:
+                # Tie (Donon ko unka paisa wapas)
+                users[g['p1']]['bal'] += g['amt']
+                users[g['p2']]['bal'] += g['amt']
+                res_text += "🤝 **Match Tie!** Donon ke paise wapas."
+            elif (c1 == "stone" and c2 == "scissor") or (c1 == "paper" and c2 == "stone") or (c1 == "scissor" and c2 == "paper"):
+                # Player 1 Jeet Gaya
+                users[g['p1']]['bal'] += win_amt
+                users[g['p2']]['bal'] += lose_return
+                res_text += f"🏆 **{g['p1_name']} Jeet Gaya!** (+{win_amt} Rs)\n😢 **{g['p2_name']} Haar Gaya!** (+{lose_return} Rs wapas mile)"
+            else:
+                # Player 2 Jeet Gaya
+                users[g['p2']]['bal'] += win_amt
+                users[g['p1']]['bal'] += lose_return
+                res_text += f"🏆 **{g['p2_name']} Jeet Gaya!** (+{win_amt} Rs)\n😢 **{g['p1_name']} Haar Gaya!** (+{lose_return} Rs wapas mile)"
+                
+            bot.edit_message_text(res_text, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+            del sps_games[gid]
+    
     elif d.startswith("xo_join_"):
         gid = d.split("_")[2]
         if gid not in xo_games: return bot.answer_callback_query(call.id, "Game khatam!")
