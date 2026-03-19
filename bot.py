@@ -904,7 +904,7 @@ def buy_shield(message):
     u['bal'] -= 500
     u['shield_until'] = time.time() + 86400 # 24 Hours
     bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
-@bot.message_handler(commands=['imagine', 'photo'])
+@bot.message_handler(commands=['imagine', 'img'])
 def generate_image(message):
     # Lock Check
     if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: 
