@@ -73,6 +73,7 @@ GROUP_USERNAME = "@Daimondbatch"
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
     BotCommand("bal", "Apna khaata aur level dekhein"),
+    BotCommand("hd", "✨ Purani photo ko 4K HD banayein"),
     BotCommand("shop", "apne aap ko upgrade kare"),
     BotCommand("toprank", "Top 10 ameer log"),
     BotCommand("topkills", "Top 10 Serial Killers"),
@@ -1498,6 +1499,71 @@ def check_win(b):
         if b[w[0]] != "-" and b[w[0]] == b[w[1]] == b[w[2]]: return b[w[0]]
     if "-" not in b: return "Tie"
     return None
+
+@bot.message_handler(commands=['hd', 'enhance'])
+def make_photo_hd(message):
+    # Admin Lock Check
+    if "hd" in disabled_cmds and message.from_user.id != ADMIN_ID: return
+    
+    if not message.reply_to_message or not message.reply_to_message.photo:
+        return bot.reply_to(message, "📸 **Aise likho:**\nKisi blur ya purani photo par reply karke `/hd` likho sa!", parse_mode="Markdown")
+        
+    wait_msg = bot.reply_to(message, "⏳ *Engine photo ko 4K HD bana raha hai, thoda time lagega ruk sa...*", parse_mode="Markdown")
+    bot.send_chat_action(message.chat.id, 'upload_photo')
+    
+    try:
+        # 1. Telegram se purani photo download karna
+        file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        
+        # 2. HF API par bhej kar Enhance (HD) karwana
+        # (Yahan aapke HF space par /enhance naam ka endpoint hona chahiye, warna external API use hogi)
+        res = requests.post(f"{HF_API}/enhance", files={"image": downloaded_file}, timeout=60)
+        
+        if res.status_code == 200:
+            # 3. Watermark Engine: "jagirdar pawan" likhna
+            img = Image.open(io.BytesIO(res.content))
+            draw = ImageDraw.Draw(img)
+            
+            # Photo ke size ke hisaab se font bada/chota karna
+            font_size = max(30, int(img.height * 0.04)) 
+            try:
+                # Agar aapke paas koi stylish font hai toh wo use karega, warna default
+                font = ImageFont.truetype("font1.ttf", font_size)
+            except:
+                font = ImageFont.load_default()
+                
+            text = "jagirdar pawan"
+            
+            # Text ki lambai aur chaudai nikalna
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+            
+            # Photo ke theek neeche beech mein (Bottom Center) set karna
+            x = (img.width - text_width) / 2
+            y = img.height - text_height - 30 
+            
+            # Text ke piche ek halka sa kaala (black) dabba banana taaki text hamesha chamke
+            draw.rectangle([x - 15, y - 10, x + text_width + 15, y + text_height + 15], fill=(0, 0, 0, 150))
+            
+            # Safed (White) rang se apna naam likhna
+            draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
+            
+            # 4. Final VIP Photo ko Telegram par bhejna
+            output = io.BytesIO()
+            img.save(output, format="JPEG", quality=100) # 100% Quality
+            output.seek(0)
+            output.name = "HD_Photo.jpg"
+            
+            bot.send_photo(message.chat.id, output, caption="📸 **DAIMOND BATCH HD STUDIO**\n✨ *Photo ekdum 4K Makkhan ho gayi sa!*")
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+            
+        else:
+            bot.edit_message_text("❌ Engine ne nakhre kiye sa! Wapas try karo.", message.chat.id, wait_msg.message_id)
+            
+    except Exception as e:
+        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['deactivate'])
 def deactivate_cmd(message):
