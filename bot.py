@@ -851,9 +851,9 @@ def generate_image(message):
     # 🚨 Render ki tijori se HF ki chaabi nikalna (Aapne naam 'H' rakha hai)
     HF_KEY = os.environ.get('H')
     if not HF_KEY:
-        return bot.reply_to(message, "❌ Boss! Hugging Face ki chaabi 'H' naam se Render mein nahi mili!")
+        return bot.reply_to(message, "❌ Boss! a hi nahi hua!")
 
-    wait_msg = bot.reply_to(message, "⏳ *Stable Diffusion XL aapki photo bana raha hai, 10-20 second wait karo sa...*", parse_mode="Markdown")
+    wait_msg = bot.reply_to(message, "⏳ *photo banha raha hu, 10-20 second wait karo sa...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'upload_photo')
     
     API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
@@ -941,9 +941,9 @@ def ask_ai_voice(message):
     # Render ki tijori se Groq ki chaabi nikalna
     GROQ_API_KEY = os.environ.get('GROQ_KEY')
     if not GROQ_API_KEY:
-        return bot.reply_to(message, "❌ Boss! Groq ki chaabi (GROQ_KEY) nahi mili!")
+        return bot.reply_to(message, "❌ Boss! nahi hua sorry")
 
-    wait_msg = bot.reply_to(message, "⏳ *Jarvis dimaag laga raha hai aur gala saaf kar raha hai...*", parse_mode="Markdown")
+    wait_msg = bot.reply_to(message, "⏳ *gala saaf kar raha hu...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'record_voice')
     
     try:
@@ -1130,7 +1130,7 @@ def remove_background_cmd(message):
     if not message.reply_to_message or not message.reply_to_message.photo:
         return bot.reply_to(message, "📸 **Aise likho:**\nKisi photo par reply karke `/photo` likho sa!", parse_mode="Markdown")
         
-    wait_msg = bot.reply_to(message, "⏳ *Hugging Face Engine se background mita raha hu...*")
+    wait_msg = bot.reply_to(message, "⏳ *background mita raha hu...*")
     try:
         file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
