@@ -32,6 +32,21 @@ GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 MONGO_URL = os.environ.get('MONGO_URL')
 # 🚀 HUGGING FACE PRIVATE API ENGINE LINK
 HF_API = "https://singhp08-daimond-batch.hf.space"
+# 🌐 RENDER DUMMY SERVER (Iske bina Render crash karega)
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "🔥 Daimond Batch Bot is LIVE and Makkhan! 🔥"
+
+def run_server():
+    # Render jo port dega uspar chalega, warna 10000 par
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    server_thread = threading.Thread(target=run_server)
+    server_thread.start()
 
 # Admin & Group Info
 ADMIN_ID = 7574760011 
