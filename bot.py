@@ -1328,54 +1328,78 @@ def generate_multi_font_paper(segments):
     img_width = 1240
     left_margin = 150
     right_margin = 50
-    top_margin = 100
+    top_margin = 160 # 🚨 Upar ka khali Header bada kar diya
     line_spacing = 65 
     
-    # Paper ki height ka andaza lagana
+    # Paper ki height ka accurate andaza (Enter/Newlines ko gin kar)
     total_text = " ".join([seg['text'] for seg in segments])
-    est_lines = (len(total_text) // 40) + 5
+    est_lines = total_text.count('\n') + (len(total_text) // 40) + 5
     img_height = max(1754, top_margin + (est_lines * line_spacing) + 200)
 
     img = Image.new('RGB', (img_width, img_height), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    # Red margins draw karna
+    # Red margins (2 lines for realism)
     draw.line([(left_margin, 0), (left_margin, img_height)], fill=(255, 0, 0, 150), width=3)
     draw.line([(left_margin + 8, 0), (left_margin + 8, img_height)], fill=(255, 0, 0, 150), width=1)
 
-    # Pehle poore paper par Blue ruled lines draw kar do
-    y_line = top_margin + 45
+    # Blue lines (Top margin chhod kar shuru hongi)
+    y_line = top_margin + line_spacing
     while y_line < img_height:
         draw.line([(0, y_line), (img_width, y_line)], fill=(0, 0, 255, 80), width=2)
         y_line += line_spacing
 
     x_text = left_margin + 20
-    y_text = top_margin
+    # Text ko blue line ke theek oopar baithane ke liye offset
+    y_text = top_margin + 15 
     
-    # Har segment ka text ek-ek word karke draw karna (Seamless Wrap)
     for seg in segments:
         font_num = seg["font"]
-        font_path = f"font{font_num}.ttf" # 🚨 FONTS YAHI HONE CHAHIYE 🚨
+        font_path = f"font{font_num}.ttf"
         try:
             font = ImageFont.truetype(font_path, 35)
         except:
             font = ImageFont.load_default()
             
-        color = seg.get("color", (0, 0, 180)) # Default agar kuch na ho
+        color = seg.get("color", (0, 0, 180))
         
-        words = seg["text"].split(" ")
-        for word in words:
-            if not word: continue
-            try: word_width = font.getlength(word + " ")
-            except: word_width = len(word) * 15 
-            
-            # Agar word line ke bahar jaa raha hai, toh agli line pe aao
-            if x_text + word_width > img_width - right_margin:
+        # 🚨 NEWLINE FIX: Text ko Enter (\n) se todna
+        paragraphs = seg["text"].split('\n')
+        
+        for p_idx, para in enumerate(paragraphs):
+            if p_idx > 0:
+                # Message me Enter tha, toh paper pe bhi agli line pe jao
                 x_text = left_margin + 20
                 y_text += line_spacing
+            
+            if not para.strip():
+                continue
                 
-            draw.text((x_text, y_text), word + " ", font=font, fill=color)
-            x_text += word_width
+            words = para.split(" ")
+            for word in words:
+                if not word: continue
+                try: word_width = font.getlength(word + " ")
+                except: word_width = len(word) * 15 
+                
+                # 🚨 SERIAL NUMBER FIX: Check karo kya ye margin me jayega
+                is_serial = False
+                # Agar line ki shuruat hai aur word me number/letter ke sath . ya ) hai (Jaise 1. ya Q.)
+                if x_text == left_margin + 20 and re.match(r'^([A-Za-z0-9]+[.)])$', word):
+                    is_serial = True
+
+                if is_serial:
+                    # Laal line ke left mein likhna (x = 35)
+                    draw.text((35, y_text), word, font=font, fill=color)
+                    # Agla word normal jagah (laal line ke right) se shuru hoga, x_text change nahi karenge
+                    continue
+
+                # Normal word wrapping (Agar line bhar jaye toh neeche aao)
+                if x_text + word_width > img_width - right_margin:
+                    x_text = left_margin + 20
+                    y_text += line_spacing
+                    
+                draw.text((x_text, y_text), word + " ", font=font, fill=color)
+                x_text += word_width
 
     output = io.BytesIO()
     img.save(output, format="JPEG", quality=90)
