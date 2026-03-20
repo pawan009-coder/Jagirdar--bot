@@ -3,12 +3,6 @@ requests
 flask
 pymongo
 pillow
-edge-tts
-opencv-python-headless
-numpy
-rembg
-onnxruntime
-pytesseract
 deep-translator
 yt-dlp
 feedparser
