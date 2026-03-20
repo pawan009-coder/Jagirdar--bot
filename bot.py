@@ -106,6 +106,7 @@ bot.set_my_commands([
     
     # 👑 NAYE ADMIN COMMANDS (Sirf Boss ke liye)
     BotCommand("list", "👑 DM me sabki list dekhein"),
+    BotCommand("blocklist", "👑 DM me sabhi block user ki list dekhein"),
     BotCommand("tell", "👑 DM se sabko message bhejein"),
     BotCommand("block", "👑 Kisi ko bot se block karein"),
     BotCommand("gift", "👑 Kisi ko free mein paise dein"),
@@ -237,20 +238,57 @@ Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saa
 def blocked_user_handler(message):
     bot.reply_to(message, "🚫 **ACCESS DENIED**\nBoss (Admin) ne aapko is bot se block kar diya hai sa!")
 
-# 2. 📋 List Command (Sabki Kundali)
+# 2. 📋 List Command (Sabki Kundali - Multi-Message Support)
 @bot.message_handler(commands=['list'])
 def admin_list_users(message):
     if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
     
-    text = "📋 **DAIMOND BATCH USERS** 📋\n━━━━━━━━━━━━━━━━━━━\n"
+    header = "📋 **DAIMOND BATCH USERS** 📋\n━━━━━━━━━━━━━━━━━━━\n"
+    text = header
+    
     for i, (uid, data) in enumerate(users.items(), 1):
         status = "🚫 BLOCKED" if data.get('blocked', False) else "✅ Active"
-        text += f"{i}. {data['name']} (ID: `{uid}`) - {status}\n"
+        line = f"{i}. {data['name']} (ID: `{uid}`) - {status}\n"
         
-    # Telegram ek baar mein 4096 characters hi bhejta hai
-    if len(text) > 4000: text = text[:4000] + "\n... (List bahut lambi hai sa!)"
-    bot.reply_to(message, text, parse_mode="Markdown")
+        # Agar agla line jodne se message 4000 se bada ho raha hai, toh pehle itna bhej do
+        if len(text) + len(line) > 4000:
+            bot.send_message(message.chat.id, text, parse_mode="Markdown")
+            text = line # Naya message is line se shuru karo
+        else:
+            text += line
+            
+    # Jo aakhiri bacha hua text hai, wo bhej do
+    if text and text != header:
+        bot.send_message(message.chat.id, text, parse_mode="Markdown")
+    elif text == header:
+        bot.reply_to(message, "Boss, abhi tak database mein koi user nahi aaya hai!")
 
+# 2.5 🚫 Blocklist Command (Sirf Block hue logo ki list)
+@bot.message_handler(commands=['blocklist'])
+def admin_blocklist_users(message):
+    if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
+    
+    header = "🚫 **BLOCKED USERS LIST** 🚫\n━━━━━━━━━━━━━━━━━━━\n"
+    text = header
+    count = 1
+    
+    for uid, data in users.items():
+        if data.get('blocked', False):
+            line = f"{count}. {data['name']} (ID: `{uid}`)\n"
+            
+            if len(text) + len(line) > 4000:
+                bot.send_message(message.chat.id, text, parse_mode="Markdown")
+                text = line
+            else:
+                text += line
+            count += 1
+            
+    if count == 1: # Matlab loop me koi blocked user nahi mila
+        bot.reply_to(message, "✅ **All Clear!**\nBoss, abhi tak kisi ko block nahi kiya gaya hai!")
+    else:
+        if text:
+            bot.send_message(message.chat.id, text, parse_mode="Markdown")
+            
 # 3. 📢 Tell Command (Announcement ya DM)
 @bot.message_handler(commands=['tell'])
 def admin_tell_cmd(message):
@@ -560,31 +598,25 @@ def roast_cmd(message):
     try:
         # 3. Groq LLaMA-3 (Rap Likhwana)
         headers_chat = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {
-            "model": "llama-3.1-8b-instant",
-            "messages": [
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": f"Chal {target_name} ko dhakka maar ke roast kar!"}
-            ]
-        }
+        payload = {"model": "llama-3.1-8b-instant", "messages": [{"role": "system", "content": sys_prompt}, {"role": "user", "content": f"Chal {target_name} ko dhakka maar ke roast kar!"}]}
         res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
         ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
 
-        # 4. Edge-TTS (Rap Record Karna - Speed thodi tez ki hai +10%)
+        # 4. 🚨 FIXED: HF API se Rap Record Karna
         safe_reply = ai_reply.replace('"', '').replace("'", "")
-        audio_file = f"roast_{message.message_id}.ogg" 
+        res_tts = requests.post(f"{HF_API}/tts", data={"text": safe_reply, "rate": "+10%"})
         
-        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '+10%', '--text', safe_reply, '--write-media', audio_file])
-        
-        # 5. Telegram par Final Voice Note bhejna
-        with open(audio_file, "rb") as final_audio:
-            bot.send_voice(message.chat.id, final_audio, caption=caption_text)
-            
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove(audio_file)
+        if res_tts.status_code == 200:
+            from io import BytesIO
+            audio_bytes = BytesIO(res_tts.content)
+            audio_bytes.name = "roast.ogg"
+            bot.send_voice(message.chat.id, audio_bytes, caption=caption_text)
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text("❌ Mic kharab ho gaya sa! (Awaaz nahi bani)", message.chat.id, wait_msg.message_id)
 
     except Exception as e:
-        bot.edit_message_text(f"❌ Mic kharab ho gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
 import os
 import subprocess
@@ -712,30 +744,27 @@ def auto_news_broadcast():
         # Anchor ki Script tayyar karna
         script = f"नमस्कार! डायमंड बैच न्यूज़ में आपका स्वागत है। आज की सबसे बड़ी खबरें इस प्रकार हैं... पहली खबर: {headlines[0]}. दूसरी खबर: {headlines[1]}. तीसरी खबर: {headlines[2]}. ताज़ा खबरों के लिए जुड़े रहें, आपका समय शुभ हो!"
 
-        # 2. Edge-TTS se News Anchor ki Voice Record karna
-        audio_file = "news_bulletin.ogg"
-        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--rate', '+0%', '--text', script, '--write-media', audio_file])
+        # 🚨 FIXED: HF API se News Anchor ki Voice Record karna
+        res_tts = requests.post(f"{HF_API}/tts", data={"text": script, "rate": "+0%"})
 
-        # 3. FLUX AI se Ekdum Asli TV Studio Background Banana
+        # FLUX AI se TV Studio Background Banana
         flux_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
         img_prompt = "Professional TV news anchor studio desk with BREAKING NEWS graphics, cinematic lighting, 8k resolution, highly detailed"
         res_img = requests.post(flux_url, headers=headers_hf, json={"inputs": img_prompt}, timeout=60)
 
-        # 4. Sabhi Active Groups mein Blast Karna!
-        for gid in list(active_groups):
-            try:
-                # Pehle Studio ki photo bhejega
-                bot.send_photo(gid, photo=res_img.content, caption="📰 **DAIMOND BATCH LIVE NEWS** 📰\n*(Powered by AI Anchor)*")
-                # Fir audio bhejega
-                with open(audio_file, "rb") as final_audio:
-                    bot.send_voice(gid, final_audio, caption="🎙️ *Aaj Ki Taaza Khabar sunne ke liye Play karein!*")
-            except Exception as e:
-                print(f"Group {gid} mein bhejne me error: {e}")
-
-        # Kachra saaf
-        if os.path.exists(audio_file):
-            os.remove(audio_file)
+        # Sabhi Active Groups mein Blast Karna!
+        if res_tts.status_code == 200 and res_img.status_code == 200:
+            from io import BytesIO
+            for gid in list(active_groups):
+                try:
+                    bot.send_photo(gid, photo=res_img.content, caption="📰 **DAIMOND BATCH LIVE NEWS** 📰\n*(Powered by AI Anchor)*")
+                    
+                    audio_bytes = BytesIO(res_tts.content)
+                    audio_bytes.name = "news.ogg"
+                    bot.send_voice(gid, audio_bytes, caption="🎙️ *Aaj Ki Taaza Khabar sunne ke liye Play karein!*")
+                except Exception as e:
+                    print(f"Group {gid} mein bhejne me error: {e}")
 
     except Exception as e:
         print(f"News Anchor System Error: {e}")
@@ -947,15 +976,9 @@ def ask_ai_voice(message):
     bot.send_chat_action(message.chat.id, 'record_voice')
     
     try:
-        # 1. Groq LLaMA-3 (Dimaag lagana aur Text Answer nikalna)
+        # 1. Groq LLaMA-3 (Dimaag lagana)
         headers_chat = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
-        payload = {
-            "model": "llama-3.1-8b-instant",
-            "messages": [
-                {"role": "system", "content": "Tera naam Jarvis hai. Tu Daimond Batch ka AI assistant hai. Hamesha sirf 2-3 line mein aur Hinglish main jawab dena, taaki bolne mein zyada lamba na lage."},
-                {"role": "user", "content": prompt}
-            ]
-        }
+        payload = {"model": "llama-3.1-8b-instant", "messages": [{"role": "system", "content": "Tera naam Jarvis hai. Tu Daimond Batch ka AI assistant hai. Hamesha sirf 2-3 line mein aur Hinglish main jawab dena, taaki bolne mein zyada lamba na lage."}, {"role": "user", "content": prompt}]}
         res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
         
         if res_chat.status_code != 200:
@@ -963,24 +986,22 @@ def ask_ai_voice(message):
             
         ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
 
-        # 2. Edge-TTS (Text ko Awaaz mein badalna)
+        # 2. 🚨 FIXED: HF API se Awaaz banwana
         safe_reply = ai_reply.replace('"', '').replace("'", "")
-        # Har message ke liye alag file name taaki group me clash na ho
-        audio_file = f"jarvis_{message.message_id}.ogg" 
+        res_tts = requests.post(f"{HF_API}/tts", data={"text": safe_reply, "rate": "+0%"})
         
-        subprocess.run(['edge-tts', '--voice', 'hi-IN-MadhurNeural', '--text', safe_reply, '--write-media', audio_file])
-        
-        # 3. Telegram par Final Voice Note bhejna
-        with open(audio_file, "rb") as final_audio:
-            bot.send_voice(message.chat.id, final_audio, caption=f"🎙️ **Jarvis AI**\n🗣️ *Aapka sawal:* {prompt}")
-            
-        # 4. Kachra saaf (Memory bachane ke liye)
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove(audio_file)
+        if res_tts.status_code == 200:
+            from io import BytesIO
+            audio_bytes = BytesIO(res_tts.content)
+            audio_bytes.name = "jarvis.ogg"
+            bot.send_voice(message.chat.id, audio_bytes, caption=f"🎙️ **Jarvis AI**\n🗣️ *Aapka sawal:* {prompt}")
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text("❌ Jarvis ka gala kharab hai sa!", message.chat.id, wait_msg.message_id)
 
     except Exception as e:
         bot.edit_message_text(f"❌ Jarvis ko khasi aa gayi sa! Error: {e}", message.chat.id, wait_msg.message_id)
-
+        
 @bot.message_handler(commands=['dart'])
 def play_dart(message):
     if "dart" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
