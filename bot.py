@@ -1132,6 +1132,7 @@ def remove_background_cmd(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
             
+# 3. 👁️ NAYA OCR / READER (API se) - FIXED
 @bot.message_handler(commands=['read', 'ocr'])
 def read_image_text(message):
     if "read" in disabled_cmds and message.from_user.id != ADMIN_ID: return
@@ -1143,7 +1144,9 @@ def read_image_text(message):
         file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
         
-        res = requests.post(f"{HF_API}/ocr", files={"image": downloaded_file})
+        # Timeout lagaya taaki hamesha ke liye na atke
+        res = requests.post(f"{HF_API}/ocr", files={"image": downloaded_file}, timeout=60)
+        
         if res.status_code == 200:
             extracted_text = res.json().get('text', '').strip()
             if not extracted_text:
@@ -1152,8 +1155,11 @@ def read_image_text(message):
             translated_text = GoogleTranslator(source='auto', target='hi').translate(extracted_text[:1500])
             final_msg = f"📄 **Original:**\n`{extracted_text[:1500]}`\n\n🇮🇳 **Hindi:**\n`{translated_text}`"
             bot.edit_message_text(final_msg, message.chat.id, wait_msg.message_id, parse_mode="Markdown")
+        else:
+            # Ab error aayega toh exact text dikhega, bot atkega nahi!
+            bot.edit_message_text(f"❌ HF Engine Error: {res.text}", message.chat.id, wait_msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id) 
+        bot.edit_message_text(f"❌ Crash Error: {e}", message.chat.id, wait_msg.message_id)
 
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
