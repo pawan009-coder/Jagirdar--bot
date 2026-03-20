@@ -1291,140 +1291,97 @@ def repay_cmd(message):
     u['loan']['active'] = False
     bot.reply_to(message, "✅ Udhar chukta hua!")
 
-# 📜 GRAND LEGEND FEATURE: REALISTIC PAPER
-FONT_MAPPING = {
-    "1": "font1", "2": "font2", "3": "font3", "4": "font4", "5": "font5",
-    "6": "font6", "7": "font7", "8": "font8", "9": "font1", "10": "font2"
-}
+import re
 
-from PIL import Image, ImageDraw, ImageFont
-import io
-import textwrap
-import os
-import requests
-
-# 📜 GRAND LEGEND FEATURE: 30 VIP FONTS (KHUD KA REALISTIC PAPER)
-FONTS_URL = {
-    "1": "https://github.com/google/fonts/raw/main/ofl/caveat/Caveat-Regular.ttf",
-    "2": "https://github.com/google/fonts/raw/main/ofl/patrickhand/PatrickHand-Regular.ttf",
-    "3": "https://github.com/google/fonts/raw/main/ofl/shadowsintolight/ShadowsIntoLight-Regular.ttf",
-    "4": "https://github.com/google/fonts/raw/main/ofl/gochihand/GochiHand-Regular.ttf",
-    "5": "https://github.com/google/fonts/raw/main/ofl/indieflower/IndieFlower-Regular.ttf",
-    "6": "https://github.com/google/fonts/raw/main/ofl/kalam/Kalam-Regular.ttf",
-    "7": "https://github.com/google/fonts/raw/main/ofl/reeniebeanie/ReenieBeanie.ttf",
-    "8": "https://github.com/google/fonts/raw/main/ofl/justanotherhand/JustAnotherHand-Regular.ttf",
-    "9": "https://github.com/google/fonts/raw/main/ofl/mansalva/Mansalva-Regular.ttf",
-    "10": "https://github.com/google/fonts/raw/main/ofl/nanumpenscript/NanumPenScript-Regular.ttf",
-    "11": "https://github.com/google/fonts/raw/main/ofl/dancingscript/DancingScript-Regular.ttf",
-    "12": "https://github.com/google/fonts/raw/main/ofl/pacifico/Pacifico-Regular.ttf",
-    "13": "https://github.com/google/fonts/raw/main/ofl/sacramento/Sacramento-Regular.ttf",
-    "14": "https://github.com/google/fonts/raw/main/ofl/greatvibes/GreatVibes-Regular.ttf",
-    "15": "https://github.com/google/fonts/raw/main/ofl/parisienne/Parisienne-Regular.ttf",
-    "16": "https://github.com/google/fonts/raw/main/ofl/allura/Allura-Regular.ttf",
-    "17": "https://github.com/google/fonts/raw/main/ofl/alexbrush/AlexBrush-Regular.ttf",
-    "18": "https://github.com/google/fonts/raw/main/ofl/cookie/Cookie-Regular.ttf",
-    "19": "https://github.com/google/fonts/raw/main/ofl/rochester/Rochester-Regular.ttf",
-    "20": "https://github.com/google/fonts/raw/main/ofl/satisfy/Satisfy-Regular.ttf",
-    "21": "https://github.com/google/fonts/raw/main/ofl/architectsdaughter/ArchitectsDaughter-Regular.ttf",
-    "22": "https://github.com/google/fonts/raw/main/ofl/handlee/Handlee-Regular.ttf",
-    "23": "https://github.com/google/fonts/raw/main/ofl/amaticsc/AmaticSC-Regular.ttf",
-    "24": "https://github.com/google/fonts/raw/main/apache/permanentmarker/PermanentMarker-Regular.ttf",
-    "25": "https://github.com/google/fonts/raw/main/apache/rocksalt/RockSalt-Regular.ttf",
-    "26": "https://github.com/google/fonts/raw/main/ofl/coveredbyyourgrace/CoveredByYourGrace.ttf",
-    "27": "https://github.com/google/fonts/raw/main/ofl/gloriahallelujah/GloriaHallelujah.ttf",
-    "28": "https://github.com/google/fonts/raw/main/apache/walterturncoat/WalterTurncoat-Regular.ttf",
-    "29": "https://github.com/google/fonts/raw/main/ofl/neucha/Neucha-Regular.ttf",
-    "30": "https://github.com/google/fonts/raw/main/ofl/badscript/BadScript-Regular.ttf"
-}
-
-if not os.path.exists('assets'):
-    os.makedirs('assets')    
-    
-def parse_paper_text(raw_text):
-    # Multi-command ko todne ka logic
-    parts = raw_text.split('/paper')
+# ==========================================
+# 🚀 VIP MULTI-FONT PAPER ENGINE
+# ==========================================
+def parse_paper_commands(raw_text):
     segments = []
-    for p in parts:
-        p = p.strip()
-        if not p: continue
-        tokens = p.split(maxsplit=1)
-        style = "1"
-        text = p
-        if tokens[0].isdigit():
-            style = tokens[0]
-            text = tokens[1] if len(tokens) > 1 else ""
-        if text.strip():
-            segments.append({"style": style, "text": text.strip()})
+    # Pattern: /paper ya /hw aur uske aage ka number (agar ho toh)
+    pattern = r'/(?:paper|hw)\s*(\d+)?'
+    splits = re.split(pattern, raw_text)
+    
+    current_font = 1
+    i = 0
+    while i < len(splits):
+        part = splits[i]
+        if part is None:
+            i += 1
+            continue
+        if part.isdigit():
+            current_font = int(part)
+            i += 1
+            if i < len(splits) and splits[i]:
+                text_part = splits[i].strip()
+                if text_part: segments.append({"font": current_font, "text": text_part + " "})
+            i += 1
+        else:
+            text_part = part.strip()
+            if text_part:
+                text_part = re.sub(r'^/(?:paper|hw)\s*', '', text_part).strip()
+                if text_part: segments.append({"font": current_font, "text": text_part + " "})
+            i += 1
     return segments
 
-def make_supreme_paper(segments, start_color_idx):
-    img = Image.new('RGB', (800, 1100), color=(255, 255, 255))
+def generate_multi_font_paper(segments):
+    img_width = 1240
+    left_margin = 150
+    right_margin = 50
+    top_margin = 100
+    line_spacing = 65 
+    
+    # Paper ki height ka andaza lagana
+    total_text = " ".join([seg['text'] for seg in segments])
+    est_lines = (len(total_text) // 40) + 5
+    img_height = max(1754, top_margin + (est_lines * line_spacing) + 200)
+
+    img = Image.new('RGB', (img_width, img_height), color=(255, 255, 255))
     draw = ImageDraw.Draw(img)
 
-    MARGIN_X = 120
-    TOP_MARGIN_Y = 200 # 🔥 NAYA: Horizontal Top Margin (Upar ki laal line)
-    START_BLUE_LINE = 280 # Pehli blue line top margin ke neeche se
-    LINE_SPACING = 80 # 🔥 NAYA: Khuli-khuli lines taaki bada text fit aaye
+    # Red margins draw karna
+    draw.line([(left_margin, 0), (left_margin, img_height)], fill=(255, 0, 0, 150), width=3)
+    draw.line([(left_margin + 8, 0), (left_margin + 8, img_height)], fill=(255, 0, 0, 150), width=1)
 
-    # 1. Vertical Red Line (Bayein taraf)
-    draw.line([(MARGIN_X, 0), (MARGIN_X, 1100)], fill=(255, 100, 100), width=3)
+    # Pehle poore paper par Blue ruled lines draw kar do
+    y_line = top_margin + 45
+    while y_line < img_height:
+        draw.line([(0, y_line), (img_width, y_line)], fill=(0, 0, 255, 80), width=2)
+        y_line += line_spacing
+
+    x_text = left_margin + 20
+    y_text = top_margin
     
-    # 2. Horizontal Red Line (Upar ka margin boundary)
-    draw.line([(0, TOP_MARGIN_Y), (800, TOP_MARGIN_Y)], fill=(255, 100, 100), width=3)
-
-    # 3. Blue Lines (Sirf top margin ke neeche se draw hogi)
-    for y in range(START_BLUE_LINE, 1100, LINE_SPACING):
-        draw.line([(0, y), (800, y)], fill=(150, 200, 255), width=2)
-
-    # Text line ke theek upar baithega
-    y_text = START_BLUE_LINE - 75 
-    color_idx = start_color_idx
-
+    # Har segment ka text ek-ek word karke draw karna (Seamless Wrap)
     for seg in segments:
-        font_url = FONTS_URL.get(str(seg["style"]), FONTS_URL["1"])
-        font_name = font_url.split('/')[-1]
-        font_path = f"assets/{font_name}"
-
-        if not os.path.exists(font_path):
-            try:
-                res = requests.get(font_url)
-                with open(font_path, 'wb') as f: f.write(res.content)
-            except: pass
-
-        # 🔥 FONT SIZE FIX: Sabko bada aur asani se padhne layakh banaya (Size 70)
-        try: font = ImageFont.truetype(font_path, 70) 
-        except: font = ImageFont.load_default()
-
-        # Word wrap kam kiya taaki bade fonts page se bahar na nikle
-        lines = textwrap.wrap(seg["text"], width=26)
-        ink = INK_COLORS[COLOR_KEYS[color_idx]]["rgb"]
-
-        for i, line in enumerate(lines):
-            if y_text > 1050: break
+        font_num = seg["font"]
+        font_path = f"font{font_num}.ttf" # 🚨 FONTS YAHI HONE CHAHIYE 🚨
+        try:
+            font = ImageFont.truetype(font_path, 35)
+        except:
+            font = ImageFont.load_default()
             
-            # 🔥 SMART SERIAL NUMBER DETECTION (Margin ke andar)
-            serial_match = re.match(r'^([A-Za-z0-9]+[\.\)])\s*(.*)', line)
-            if serial_match and i == 0:
-                serial = serial_match.group(1)
-                rest_of_line = serial_match.group(2)
-                draw.text((MARGIN_X - 90, y_text), serial, font=font, fill=ink) # Andar
-                draw.text((MARGIN_X + 20, y_text), rest_of_line, font=font, fill=ink) # Bahar
-            else:
-                draw.text((MARGIN_X + 20, y_text), line, font=font, fill=ink)
-            
-            y_text += LINE_SPACING
+        color = seg.get("color", (0, 0, 180)) # Default agar kuch na ho
         
-        # 🔥 MULTI-COLOR LOGIC
-        color_idx = (color_idx + 1) % len(COLOR_KEYS)
-        if y_text > 1050: break
+        words = seg["text"].split(" ")
+        for word in words:
+            if not word: continue
+            try: word_width = font.getlength(word + " ")
+            except: word_width = len(word) * 15 
+            
+            # Agar word line ke bahar jaa raha hai, toh agli line pe aao
+            if x_text + word_width > img_width - right_margin:
+                x_text = left_margin + 20
+                y_text += line_spacing
+                
+            draw.text((x_text, y_text), word + " ", font=font, fill=color)
+            x_text += word_width
 
-    bio = io.BytesIO()
-    bio.name = 'paper.jpg'
-    img.save(bio, 'JPEG')
-    bio.seek(0)
-    return bio
+    output = io.BytesIO()
+    img.save(output, format="JPEG", quality=90)
+    return output.getvalue()
 
-@bot.message_handler(commands=['paper'])
+@bot.message_handler(commands=['hw', 'paper'])
 def paper_cmd(message):
     if "paper" in disabled_cmds and message.from_user.id != ADMIN_ID: 
         return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
@@ -1433,20 +1390,21 @@ def paper_cmd(message):
     if message.reply_to_message and message.reply_to_message.text:
         raw_text += " " + message.reply_to_message.text
         
-    segments = parse_paper_text(raw_text)
+    segments = parse_paper_commands(raw_text)
     if not segments:
-        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper 1 Hello` ya `/paper 2 Hii /paper 5 Bye`", parse_mode="Markdown")
+        return bot.reply_to(message, "📝 **Aise likho:**\n`/paper 1 Hello /paper 2 Kaise ho`", parse_mode="Markdown")
 
     msg_id = str(message.message_id)
-    pending_papers[msg_id] = {"chat_id": message.chat.id, "segments": segments}
+    # Temporary storage set karna
+    pending_papers[msg_id] = {"chat_id": message.chat.id, "segments": segments, "completed": 0}
 
-    # 9 Buttons banana
-    markup = InlineKeyboardMarkup(row_width=3)
-    btns = [InlineKeyboardButton(c["name"], callback_data=f"pcolor_{msg_id}_{idx}") for idx, c in enumerate(INK_COLORS.values())]
-    markup.add(*btns)
-    
-    # Iske aage exactly 4 spaces hain, ab koi error nahi aayega!
-    bot.reply_to(message, "🎨 **Kagaz pe konsi INK se likhna hai?**\n*(Agar multiple fonts hain, toh baaki texts apne aap alag color me aayenge!)*", reply_markup=markup)
+    # Jitni baar /paper aya, utne messages colors poochne ke liye bhejega!
+    for i, seg in enumerate(segments):
+        markup = InlineKeyboardMarkup(row_width=3)
+        btns = [InlineKeyboardButton(c["name"], callback_data=f"pcolor_{msg_id}_{i}_{idx}") for idx, c in enumerate(INK_COLORS.values())]
+        markup.add(*btns)
+        bot.reply_to(message, f"🎨 **Part {i+1} (Font Style {seg['font']})**\nIski INK konsi rakhni hai sa?", reply_markup=markup)
+
 def xo_start(message):
     if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     try:
@@ -1813,20 +1771,39 @@ def callbacks(call):
         del pending_says[uid]
 
     elif d.startswith("pcolor_"):
-        _, msg_id, color_idx = d.split("_")
+        # Format naya hai: pcolor_{msg_id}_{segment_index}_{color_index}
+        parts = d.split("_")
+        msg_id = parts[1]
+        seg_idx = int(parts[2])
+        color_idx = int(parts[3])
+        
         if msg_id not in pending_papers:
             return bot.answer_callback_query(call.id, "Ye paper purana ho gaya sa!")
         
         data = pending_papers[msg_id]
-        bot.edit_message_text("⏳ *Kagaz pe likha ja raha hai, 2 second ruk sa...*", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
         
-        try:
-            photo_stream = make_supreme_paper(data["segments"], int(color_idx))
-            bot.send_photo(call.message.chat.id, photo=photo_stream)
-            bot.delete_message(call.message.chat.id, call.message.message_id)
-            del pending_papers[msg_id]
-        except Exception as e:
-            bot.edit_message_text(f"❌ Error aagya: {e}", call.message.chat.id, call.message.message_id)
+        # Color nikalna aur set karna
+        color_key = list(INK_COLORS.keys())[color_idx]
+        chosen_color = INK_COLORS[color_key]["rgb"]
+        
+        # Check agar already click ho chuka hai
+        if "color" not in data["segments"][seg_idx]:
+            data["segments"][seg_idx]["color"] = chosen_color
+            data["completed"] += 1
+            
+            # Button hata kar Done likhna
+            bot.edit_message_text(f"✅ **Part {seg_idx+1}:** {INK_COLORS[color_key]['name']} set ho gayi!", call.message.chat.id, call.message.message_id)
+        
+        # Agar saare tukdo (segments) ke colors set ho gaye hain toh Photo banao!
+        if data["completed"] == len(data["segments"]):
+            wait_msg = bot.send_message(call.message.chat.id, "⏳ *Sab colors set! Final VIP Kagaz ban raha hai...*", parse_mode="Markdown")
+            try:
+                photo_stream = generate_multi_font_paper(data["segments"])
+                bot.send_photo(call.message.chat.id, photo=photo_stream, caption="📝 **Multi-Font VIP Homework!**\nJaisa order diya tha, ekdum waisa hi sa! 😎")
+                bot.delete_message(call.message.chat.id, wait_msg.message_id)
+                del pending_papers[msg_id]
+            except Exception as e:
+                bot.edit_message_text(f"❌ Error aagya: {e}", call.message.chat.id, wait_msg.message_id)
     
     elif d.startswith("buy_"):
         item_id = d.replace("buy_", "")
