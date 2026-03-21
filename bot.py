@@ -2085,105 +2085,139 @@ def callbacks(call):
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
 
-# --- THE JAGIRDAR BOSS ENGINE ---
+import json
 
-JAGIRDAR_BRAIN = """
-Tera naam 'Jagirdar' hai. Tu Daimond Batch bot ka Supreme Boss aur Guide hai. 
-Tera kaam group ke logo ko bot ke features sikhana hai. Teri aawaz aur attitude ekdum raubdaar, confident aur boss jaisa hona chahiye. Hamesha chote, clear aur Hinglish mein jawab dena.
+# --- THE SUPREME DHRUVA ENGINE ---
 
-Tere paas in sabki knowledge hai:
-1. Economy/Crime: /bal (balance), /daily, /weekly, /rob (chori karne ke liye shield nahi honi chahiye), /kill (khoon karke paise kamana), /shop (hathiyar lene ke liye), /shield (500 rs mein bachav).
-2. Games: /xo (TicTacToe), /sps (Stone Paper Scissor), /dice (Ludo), /spin (Casino), /dart.
-3. AI Features: /roast (gaali free rap roast), /video (motivational video), /hd (photo saaf karna), /sketch, /photo (BG remove), /read (text padhna).
-4. News: Har 3 ghante mein AI Female anchor aakar news deti hai.
+DHRUVA_BRAIN = """
+तुम 'ध्रुव' (Dhruva) हो, एक बेहद एडवांस्ड और असली इंसान जैसा AI असिस्टेंट। तुम्हारा बॉस Daimond Batch का एडमिन है।
+तुम्हें यूजर की बात समझनी है और JSON फॉर्मेट में आउटपुट देना है।
+तुम्हें प्योर देवनागरी हिंदी (Devanagari Hindi) में जवाब देना है ताकि तुम्हारी आवाज़ एकदम असली इंसान जैसी लगे।
 
-Agar koi puche ye sab kaise karna hai, toh usko sidha command aur tarika bata. Faltu baat mat karna, tu boss hai!
+Actions जो तुम ले सकते हो:
+1. "check_balance": अगर यूजर अपना बैलेंस या डिटेल्स पूछे।
+2. "kill": अगर यूजर किसी को मारने को कहे।
+3. "rob": अगर यूजर किसी को लूटने को कहे।
+4. "admin_steal": अगर 'बॉस' (Admin) किसी का पैसा बिना शील्ड के चुराने को कहे।
+5. "chat": अगर कोई नार्मल बात हो।
+
+OUTPUT FORMAT (Strictly JSON):
+{
+  "action": "action_name",
+  "target_name": "samne wale ka naam (agar jarurat ho)",
+  "hindi_reply": "तुम्हारा शानदार और एटीट्यूड वाला हिंदी जवाब।"
+}
 """
 
-# Text aur Voice dono pakadne wala khufiya radar
+# Voice ID for ElevenLabs (Yahan apni pasand ki Voice ID daal dena)
+ELEVENLABS_VOICE_ID = "uB7ZNdedZ982ZAoaaf0W" # Example ID
+
 @bot.message_handler(func=lambda m: True, content_types=['text', 'voice'])
-def jagirdar_monitor(message):
+def dhruva_assistant_monitor(message):
     uid = message.from_user.id
-    
-    # AI Switch check
     if "ai" in disabled_cmds and uid != ADMIN_ID: return 
     
-    # Admin (Aap) ki baaton par gyan nahi dega, admin khud boss hai!
-    if uid == ADMIN_ID and not message.text.lower().startswith("jagirdar"): 
-        return
-        
     user_input = ""
     is_voice = False
 
     try:
-        # 🎙️ 1. Agar user ne VOICE Note bheja hai
+        # 1. Kaan (Listen to Voice)
         if message.content_type == 'voice':
-            # Groq API check
             GROQ_KEY = os.environ.get('GROQ_KEY')
             if not GROQ_KEY: return
             
-            # Voice file download karna
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
             
-            # Groq Whisper API se aawaz ko Text mein badalna
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             files = {"file": ("audio.ogg", downloaded_file, "audio/ogg")}
-            data = {"model": "whisper-large-v3"}
-            res_stt = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data=data)
+            res_stt = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data={"model": "whisper-large-v3"})
             
             if res_stt.status_code == 200:
                 user_input = res_stt.json().get("text", "").lower()
                 is_voice = True
-            else:
-                return # Samajh nahi aaya toh ignore
-        
-        # 📝 2. Agar user ne TEXT bheja hai
+            else: return
         elif message.content_type == 'text':
             user_input = message.text.lower()
             
-        # 🎯 3. Trigger Words Check (Kab bolna hai)
-        trigger_words = ["jagirdar", "bot", "kaise", "kese", "help", "rob", "kill", "game khel"]
-        # Agar text mein trigger words hain, ya kisi ne usko direct voice bheji hai
+        # 2. Trigger Check (Dhruva sun raha hai ya nahi)
+        # (Yahan aap custom assistant name logic bhi jod sakte ho baad mein)
+        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal"]
+        
         if any(word in user_input for word in trigger_words) or is_voice:
-            
-            wait_msg = bot.reply_to(message, "👁️ *Jagirdar aapki baat par gaur kar raha hai...*", parse_mode="Markdown")
+            wait_msg = bot.reply_to(message, "👁️ *ध्रुव आपकी बात समझ रहा है...*", parse_mode="Markdown")
             bot.send_chat_action(message.chat.id, 'record_voice')
             
-            # 🧠 4. Groq LLaMA-3 (Jagirdar ka Dimaag)
+            # 3. Groq LLaMA-3 (JSON Dimaag)
             GROQ_KEY = os.environ.get('GROQ_KEY')
             headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
             payload = {
                 "model": "llama-3.1-8b-instant", 
                 "messages": [
-                    {"role": "system", "content": JAGIRDAR_BRAIN}, 
-                    {"role": "user", "content": f"Sawal: {user_input}"}
-                ]
+                    {"role": "system", "content": DHRUVA_BRAIN}, 
+                    {"role": "user", "content": f"User Name: {message.from_user.first_name}\nRequest: {user_input}"}
+                ],
+                "response_format": {"type": "json_object"} # 👈 THE HACKER MOVE
             }
-            res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
-            ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
-            safe_reply = ai_reply.replace('"', '').replace("'", "")
-
-            # 🗣️ 5. HF API se Voice Record (Madhur - Boss Voice)
-            res_tts = requests.post(f"{HF_API}/tts", data={
-                "text": safe_reply, 
-                "rate": "-5%", # Thodi bhari aur thehrav wali awaaz
-                "voice": "hi-IN-MadhurNeural",
-                "bgm": "none" # Isme BGM nahi chahiye warna baat samajh nahi aayegi
-            })
             
-            if res_tts.status_code == 200:
-                audio_bytes = io.BytesIO(res_tts.content)
-                audio_bytes.name = "jagirdar.ogg"
-                bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **JAGIRDAR (The Boss)**\n💬 *\"{safe_reply}\"*")
-                bot.delete_message(message.chat.id, wait_msg.message_id)
-            else:
-                bot.edit_message_text("❌ Jagirdar ka mic kharab hai!", message.chat.id, wait_msg.message_id)
-                
-    except Exception as e:
-        print(f"Jagirdar Error: {e}") # Background mein fail hoga, group mein kachra nahi karega
+            res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
+            ai_data = json.loads(res_chat.json()["choices"][0]["message"]["content"])
+            
+            action = ai_data.get("action", "chat")
+            target_name = ai_data.get("target_name", "").lower()
+            hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
 
-# Iske theek neeche aapka purana 'def handle_all(message):' hona chahiye...
+            u = get_user(message.from_user)
+
+            # ⚙️ 4. DHRUVA KI POWERS (Action Execution)
+            if action == "check_balance":
+                # User ki kundali aur history nikalna
+                hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
+                hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
+
+            elif action == "admin_steal" and uid == ADMIN_ID:
+                # 👑 GOD MODE: Bypass Shield & Transfer
+                target_user = None
+                for t_id, t_data in users.items():
+                    if target_name in t_data['name'].lower():
+                        target_user = t_data; break
+                
+                if target_user:
+                    loot_amt = target_user['bal'] # Ya koi specific amount
+                    target_user['bal'] = 0
+                    u['bal'] += loot_amt
+                    add_history(t_id, f"👑 एडमिन के ध्रुव ने ढाल तोड़कर {loot_amt} Rs निकाल लिए!")
+                    hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
+                else:
+                    hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
+
+            # 🎙️ 5. ElevenLabs Realistic Voice Generation
+            ELEVENLABS_KEY = os.environ.get('ELEVENLABS_KEY')
+            if ELEVENLABS_KEY:
+                eleven_url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
+                headers_el = {"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"}
+                payload_el = {
+                    "text": hindi_reply,
+                    "model_id": "eleven_multilingual_v2", # Ye Hindi ko ekdum native insaan jaisa bolta hai
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
+                }
+                res_tts = requests.post(eleven_url, headers=headers_el, json=payload_el)
+                
+                if res_tts.status_code == 200:
+                    audio_bytes = io.BytesIO(res_tts.content)
+                    audio_bytes.name = "dhruva.ogg"
+                    bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}")
+                else:
+                    bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(गला ख़राब है बॉस)*")
+            else:
+                bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(ElevenLabs Key Missing)*")
+
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+            
+    except Exception as e:
+        print(f"Dhruva Error: {e}") 
+
+# Yahan neeche aapka purana def handle_all(message): aayega
 
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
