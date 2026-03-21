@@ -685,18 +685,23 @@ def download_media(message):
         return bot.reply_to(message, "📥 **Aise likho:**\n`/dl [Video ka Link]`\n*(Instagram, YouTube, Twitter kuch bhi chalega sa!)*", parse_mode="Markdown")
         
     link = parts[1].strip()
-    wait_msg = bot.reply_to(message, "⏳ *Khufiya tarike se video chura raha hu, 5-10 second ruk sa...*", parse_mode="Markdown")
+    wait_msg = bot.reply_to(message, "⏳ *Khufiya tarike se video chura raha hu, ruk sa...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'record_video')
     
     file_name = f"video_{message.message_id}.mp4"
     
-    # ⚙️ yt-dlp ki VIP Settings
+    # ⚙️ Nayi aur Khatarnak yt-dlp Settings (Bina FFmpeg ke chalne wali)
     ydl_opts = {
         'outtmpl': file_name,
-        'format': 'best[ext=mp4]/best', # Telegram ko MP4 pasand hai
+        # 'b[ext=mp4]' matlab pehle se judi hui video+audio laao, FFmpeg nahi chahiye
+        'format': 'b[ext=mp4]/best', 
         'noplaylist': True,
         'quiet': True,
-        'max_filesize': 45000000 # 🚨 Telegram bot API ki limit 50MB hoti hai, isliye 45MB max rakha hai
+        'max_filesize': 50000000, # Telegram limit 50MB
+        'http_headers': {
+            # Instagram/YouTube ko lagega ye asli iPhone se khul raha hai, bot nahi hai!
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+        }
     }
     
     try:
@@ -710,7 +715,23 @@ def download_media(message):
             
         # 3. Kachra saaf karna
         bot.delete_message(message.chat.id, wait_msg.message_id)
-        os.remove(file_name)
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"DL Error: {error_msg}") # Render logs me dekhne ke liye
+        
+        if "max_filesize" in error_msg.lower() or "too large" in error_msg.lower():
+            bot.edit_message_text("❌ Video bahut bada hai sa! Telegram par max 50MB hi bhej sakte hain.", message.chat.id, wait_msg.message_id)
+        elif "private" in error_msg.lower():
+            bot.edit_message_text("❌ Video private hai, main account ke andar nahi ghus sakta sa!", message.chat.id, wait_msg.message_id)
+        else:
+            # Asli error ab Telegram pe dikhega taaki humein pata chale kya phata!
+            bot.edit_message_text(f"❌ Video download fail ho gaya sa!\n\n**Asli Error:** `{error_msg[:150]}`", message.chat.id, wait_msg.message_id, parse_mode="Markdown")
+            
+        if os.path.exists(file_name):
+            os.remove(file_name)
         
     except Exception as e:
         error_msg = str(e).lower()
