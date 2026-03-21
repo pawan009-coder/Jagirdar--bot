@@ -1452,8 +1452,12 @@ def paper_cmd(message):
         markup.add(*btns)
         bot.reply_to(message, f"🎨 **Part {i+1} (Font Style {seg['font']})**\nIski INK konsi rakhni hai sa?", reply_markup=markup)
 
+
+@bot.message_handler(commands=['xo'])  # <--- YEH LINE LAGA DO
 def xo_start(message):
-    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
+    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(...)
+    # ... baki aapka code
+
     try:
         amt = int(message.text.split()[1])
         if amt <= 0: return bot.reply_to(message, "❌ Arey Scammer! Sahi amount likh sa!")
@@ -1517,49 +1521,41 @@ def make_photo_hd(message):
         downloaded_file = bot.download_file(file_info.file_path)
         
         # 2. HF API par bhej kar Enhance (HD) karwana
-        # (Yahan aapke HF space par /enhance naam ka endpoint hona chahiye, warna external API use hogi)
         res = requests.post(f"{HF_API}/enhance", files={"image": downloaded_file}, timeout=60)
         
-        if res.status_code == 200:
-# --- WATERMARK ENGINE (Gemini/Meta AI Style) ---
-img = Image.open(io.BytesIO(res.content)).convert("RGBA")
-make_canvas = Image.new('RGBA', img.size, (0,0,0,0))
-draw = ImageDraw.Draw(make_canvas)
+     if res.status_code == 200:
+            # --- WATERMARK ENGINE (Gemini/Meta AI Style) ---
+            img = Image.open(io.BytesIO(res.content)).convert("RGBA")
+            make_canvas = Image.new('RGBA', img.size, (0,0,0,0))
+            draw = ImageDraw.Draw(make_canvas)
 
-# Font size photo ke hisaab se (thoda chota aur elegant)
-font_size = max(20, int(img.height * 0.03)) 
-try:
-    # Agar stylish font hai toh wo, warna default
-    font = ImageFont.truetype("Arial.ttf", font_size)
-except:
-    font = ImageFont.load_default()
+            # Font size photo ke hisaab se (thoda chota aur elegant)
+            font_size = max(20, int(img.height * 0.03)) 
+            try:
+                font = ImageFont.truetype("Arial.ttf", font_size)
+            except:
+                font = ImageFont.load_default()
 
-text = "jagirdar pawan"
+            text = "jagirdar pawan"
 
-# Text ka size nikalna
-bbox = draw.textbbox((0, 0), text, font=font)
-tw = bbox[2] - bbox[0]
-th = bbox[3] - bbox[1]
+            # Text ka size nikalna
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
 
-# Position: Bottom Right Corner (Thoda sa margin chhod kar)
-x = img.width - tw - 40
-y = img.height - th - 40
+            # Position: Bottom Right Corner (Thoda sa margin chhod kar)
+            x = img.width - tw - 40
+            y = img.height - th - 40
 
-# White color with transparency (Halka dikhne ke liye)
-# (255, 255, 255, 150) -> Yahan 150 transparency hai (0-255 tak hoti hai)
-draw.text((x, y), text, font=font, fill=(255, 255, 255, 160))
+            # White color with transparency (Halka dikhne ke liye 160)
+            draw.text((x, y), text, font=font, fill=(255, 255, 255, 160))
 
-# Dono images ko merge karna
-final_img = Image.alpha_composite(img, make_canvas).convert("RGB")
+            # Dono images ko merge karna
+            final_img = Image.alpha_composite(img, make_canvas).convert("RGB")
 
-# --- FINAL SENDING ---
-output = io.BytesIO()
-final_img.save(output, format="JPEG", quality=95)
-output.seek(0)
-            
-            # 4. Final VIP Photo ko Telegram par bhejna
+            # --- FINAL SENDING ---
             output = io.BytesIO()
-            img.save(output, format="JPEG", quality=100) # 100% Quality
+            final_img.save(output, format="JPEG", quality=100)
             output.seek(0)
             output.name = "HD_Photo.jpg"
             
@@ -1571,7 +1567,6 @@ output.seek(0)
             
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
-
 @bot.message_handler(commands=['deactivate'])
 def deactivate_cmd(message):
     if message.from_user.id != ADMIN_ID: return
