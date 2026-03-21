@@ -2100,6 +2100,10 @@ Actions जो तुम ले सकते हो:
 3. "rob": अगर यूजर किसी को लूटने को कहे।
 4. "admin_steal": अगर 'बॉस' (Admin) किसी का पैसा बिना शील्ड के चुराने को कहे।
 5. "chat": अगर कोई नार्मल बात हो।
+7. "claim_reward": अगर यूजर अपना डेली (daily) या वीकली (weekly) इनाम मांगे।
+8. "buy_item": अगर यूजर दुकान (shop) से कुछ खरीदने को कहे (जैसे: कुत्ता, चक्कू, जैकेट, शील्ड)।
+9. "play_game": अगर यूजर कोई गेम खेलने को कहे (जैसे डाइस, स्पिन, कसीनो) और पैसे दांव पर लगाए।
+10. "check_leaderboard": अगर यूजर टॉप रैंक या सबसे अमीर लोगों के बारे में पूछे।
 
 OUTPUT FORMAT (Strictly JSON):
 {
@@ -2109,19 +2113,24 @@ OUTPUT FORMAT (Strictly JSON):
 }
 """
 
-# Voice ID for ElevenLabs (Yahan apni pasand ki Voice ID daal dena)
-ELEVENLABS_VOICE_ID = "uB7ZNdedZ982ZAoaaf0W" # Example ID
+ELEVENLABS_VOICE_ID = "WuePGPKIAIKI8COZpzce" # 👈 यहाँ अपनी असली Voice ID डालना मत भूलना!
 
-@bot.message_handler(func=lambda m: True, content_types=['text', 'voice'])
+# 🚨 THE FIX: Dhruva सिर्फ तब जागेगा जब उसके मतलब की बात हो!
+def is_dhruva(message):
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return False
+    if message.content_type == 'voice': return True
+    if message.content_type == 'text':
+        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
+        return any(word in message.text.lower() for word in trigger_words)
+    return False
+
+@bot.message_handler(func=is_dhruva, content_types=['text', 'voice'])
 def dhruva_assistant_monitor(message):
     uid = message.from_user.id
-    if "ai" in disabled_cmds and uid != ADMIN_ID: return 
-    
     user_input = ""
     is_voice = False
 
     try:
-        # 1. Kaan (Listen to Voice)
         if message.content_type == 'voice':
             GROQ_KEY = os.environ.get('GROQ_KEY')
             if not GROQ_KEY: return
@@ -2137,84 +2146,135 @@ def dhruva_assistant_monitor(message):
                 user_input = res_stt.json().get("text", "").lower()
                 is_voice = True
             else: return
-        elif message.content_type == 'text':
+        else:
             user_input = message.text.lower()
             
-        # 2. Trigger Check (Dhruva sun raha hai ya nahi)
-        # (Yahan aap custom assistant name logic bhi jod sakte ho baad mein)
-        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal"]
+        wait_msg = bot.reply_to(message, "👁️ *ध्रुव आपकी बात समझ रहा है...*", parse_mode="Markdown")
+        bot.send_chat_action(message.chat.id, 'record_voice')
         
-        if any(word in user_input for word in trigger_words) or is_voice:
-            wait_msg = bot.reply_to(message, "👁️ *ध्रुव आपकी बात समझ रहा है...*", parse_mode="Markdown")
-            bot.send_chat_action(message.chat.id, 'record_voice')
-            
-            # 3. Groq LLaMA-3 (JSON Dimaag)
-            GROQ_KEY = os.environ.get('GROQ_KEY')
-            headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
-            payload = {
-                "model": "llama-3.1-8b-instant", 
-                "messages": [
-                    {"role": "system", "content": DHRUVA_BRAIN}, 
-                    {"role": "user", "content": f"User Name: {message.from_user.first_name}\nRequest: {user_input}"}
-                ],
-                "response_format": {"type": "json_object"} # 👈 THE HACKER MOVE
-            }
-            
-            res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
-            ai_data = json.loads(res_chat.json()["choices"][0]["message"]["content"])
-            
-            action = ai_data.get("action", "chat")
-            target_name = ai_data.get("target_name", "").lower()
-            hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+        GROQ_KEY = os.environ.get('GROQ_KEY')
+        headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+        payload = {
+            "model": "llama-3.1-8b-instant", 
+            "messages": [
+                {"role": "system", "content": DHRUVA_BRAIN}, 
+                {"role": "user", "content": f"User Name: {message.from_user.first_name}\nRequest: {user_input}"}
+            ],
+            "response_format": {"type": "json_object"}
+        }
+        
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
+        
+        if res_chat.status_code != 200:
+            raise Exception(f"Groq API Fail: {res_chat.text}")
 
-            u = get_user(message.from_user)
+        raw_ai_content = res_chat.json()["choices"][0]["message"]["content"].strip()
+        
+        import json
+        try: ai_data = json.loads(raw_ai_content)
+        except: ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
+        
+        action = ai_data.get("action", "chat")
+        target_name = ai_data.get("target_name", "").lower()
+        hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+        
+        # 🚨 THE FIX: Amount निकालना (इसके बिना क्रैश हो रहा था)
+        try: amount = int(ai_data.get("amount", 0))
+        except: amount = 0
 
-            # ⚙️ 4. DHRUVA KI POWERS (Action Execution)
-            if action == "check_balance":
-                # User ki kundali aur history nikalna
-                hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
-                hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
+        u = get_user(message.from_user)
 
-            elif action == "admin_steal" and uid == ADMIN_ID:
-                # 👑 GOD MODE: Bypass Shield & Transfer
+        # ⚙️ DHRUVA KI POWERS 
+        if action == "check_balance":
+            hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
+            hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
+
+        elif action == "give_money":
+            if amount <= 0: hindi_reply = "बॉस, आपने यह नहीं बताया कि कितने पैसे देने हैं!"
+            elif u['bal'] < amount: hindi_reply = f"बॉस, आपके अकाउंट में इतने पैसे नहीं हैं। आपका बैलेंस सिर्फ {u['bal']} रुपये है।"
+            else:
                 target_user = None
                 for t_id, t_data in users.items():
                     if target_name in t_data['name'].lower():
                         target_user = t_data; break
-                
                 if target_user:
-                    loot_amt = target_user['bal'] # Ya koi specific amount
-                    target_user['bal'] = 0
-                    u['bal'] += loot_amt
-                    add_history(t_id, f"👑 एडमिन के ध्रुव ने ढाल तोड़कर {loot_amt} Rs निकाल लिए!")
-                    hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
-                else:
-                    hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
+                    u['bal'] -= amount; target_user['bal'] += amount
+                    hindi_reply = f"जी बॉस! मैंने आपके अकाउंट से {amount} रुपये निकालकर {target_name} को दे दिए हैं।"
+                else: hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
-            # 🎙️ 5. ElevenLabs Realistic Voice Generation
-            ELEVENLABS_KEY = os.environ.get('ELEVENLABS_KEY')
-            if ELEVENLABS_KEY:
-                eleven_url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
-                headers_el = {"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"}
-                payload_el = {
-                    "text": hindi_reply,
-                    "model_id": "eleven_multilingual_v2", # Ye Hindi ko ekdum native insaan jaisa bolta hai
-                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}
-                }
-                res_tts = requests.post(eleven_url, headers=headers_el, json=payload_el)
-                
-                if res_tts.status_code == 200:
-                    audio_bytes = io.BytesIO(res_tts.content)
-                    audio_bytes.name = "dhruva.ogg"
-                    bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}")
-                else:
-                    bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(गला ख़राब है बॉस)*")
+        elif action == "claim_reward":
+            t_now = time.time()
+            multiplier = 2 if "👑 Don Taj" in u.get('inventory', []) else 1
+            if t_now - u['last_daily'] > 86400:
+                u['bal'] += 200 * multiplier; u['last_daily'] = t_now
+                hindi_reply = f"जी बॉस! मैंने आपका डेली इनाम क्लेम कर लिया है। आपके अकाउंट में {200 * multiplier} रुपये जुड़ गए हैं।"
+            else: hindi_reply = "बॉस, आपका डेली इनाम अभी टाइम-लॉक में है। आपको कल तक इंतज़ार करना होगा।"
+
+        elif action == "buy_item":
+            item_query = target_name.lower()
+            if "shield" in item_query or "शील्ड" in item_query:
+                if u['bal'] >= 500:
+                    u['bal'] -= 500; u['shield_until'] = time.time() + 86400
+                    hindi_reply = "बॉस, 500 रुपये देकर मैंने आपकी शील्ड लगा दी है। अगले 24 घंटे तक कोई आपको लूट नहीं सकता।"
+                else: hindi_reply = "बॉस, शील्ड के लिए 500 रुपये चाहिए, जो आपके बैंक में नहीं हैं।"
             else:
-                bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(ElevenLabs Key Missing)*")
+                found_item = None
+                for k, v in SHOP_ITEMS.items():
+                    if k in item_query or v['name'].lower().split()[-1].lower() in item_query: found_item = v; break
+                if found_item:
+                    if u['bal'] >= found_item['price']:
+                        u['bal'] -= found_item['price']; u["inventory"].append(found_item['name'])
+                        hindi_reply = f"जी बॉस! मैंने {found_item['price']} रुपये खर्च करके आपके लिए '{found_item['name']}' खरीद लिया है।"
+                    else: hindi_reply = f"बॉस, '{found_item['name']}' बहुत महंगा है। हमारे पास इतने पैसे नहीं हैं।"
+                else: hindi_reply = "बॉस, मुझे चोर बाज़ार में ऐसा कोई सामान नहीं मिला।"
 
-            bot.delete_message(message.chat.id, wait_msg.message_id)
+        elif action == "play_game":
+            if amount <= 0: hindi_reply = "बॉस, गेम खेलने के लिए मुझे बताएं कि कितने पैसे दांव पर लगाने हैं!"
+            elif u['bal'] < amount: hindi_reply = "बॉस, आपके पास दांव लगाने के लिए इतने पैसे नहीं हैं।"
+            else:
+                import random
+                u['bal'] -= amount
+                if random.randint(1, 100) <= 40:
+                    win_amt = amount * 2; u['bal'] += win_amt
+                    hindi_reply = f"बधाई हो बॉस! हम गेम जीत गए। मैंने {amount} लगाए थे और उसे डबल करके {win_amt} रुपये अकाउंट में डाल दिए हैं!"
+                else: hindi_reply = f"बॉस, किस्मत ख़राब थी। हम गेम में {amount} रुपये हार गए हैं।"
+
+        elif action == "check_leaderboard":
+            sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)[:3]
+            if sorted_users:
+                top_names = ", ".join([f"{data['name']} ({data['bal']} Rs)" for uid, data in sorted_users])
+                hindi_reply = f"बॉस, इस शहर के टॉप 3 सबसे अमीर लोग हैं: {top_names}।"
+            else: hindi_reply = "बॉस, अभी तक डेटाबेस में कोई नहीं है।"
+
+        elif action == "admin_steal" and uid == ADMIN_ID:
+            target_user = None
+            for t_id, t_data in users.items():
+                if target_name in t_data['name'].lower(): target_user = t_data; break
+            if target_user:
+                loot_amt = target_user['bal']; target_user['bal'] = 0; u['bal'] += loot_amt
+                hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
+            else: hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
+
+        # ElevenLabs Voice Generation
+        ELEVENLABS_KEY = os.environ.get('ELEVENLABS_KEY')
+        if ELEVENLABS_KEY:
+            eleven_url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
+            headers_el = {"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"}
+            payload_el = {"text": hindi_reply, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}}
+            res_tts = requests.post(eleven_url, headers=headers_el, json=payload_el)
+            
+            if res_tts.status_code == 200:
+                from io import BytesIO
+                audio_bytes = BytesIO(res_tts.content)
+                audio_bytes.name = "dhruva.ogg"
+                bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}")
+            else: bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n\n⚠️ **Error Report:** `{res_tts.text}`")
+        else: bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(ElevenLabs Key Missing)*")
+
+        bot.delete_message(message.chat.id, wait_msg.message_id)
             
     except Exception as e:
+        bot.send_message(message.chat.id, f"⚠️ **Dhruva System Error:** `{str(e)[:150]}`", parse_mode="Markdown")
         print(f"Dhruva Error: {e}") 
 
 # Yahan neeche aapka purana def handle_all(message): aayega
