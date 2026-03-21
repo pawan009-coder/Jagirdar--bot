@@ -724,46 +724,55 @@ def download_media(message):
 # 📰 THE AI NEWS ANCHOR (Subah 8 aur Raat 8)
 # ==========================================
 def auto_news_broadcast():
-    # Agar bot kisi group mein nahi hai, toh news kisko dega?
     if not active_groups:
         return
 
-    # Render ki tijori se Hugging Face ki chaabi nikalna
     HF_KEY = os.environ.get('H')
     if not HF_KEY: 
-        print("HF Key nahi mili!")
         return
 
     try:
-        # 1. Google News India (Hindi) se taaza khabarein churana
-        # feedparser direct internet se real-time news nikalta hai
+        # 1. Google News se Top 15 Khabarein uthana
         feed = feedparser.parse("https://news.google.com/rss?hl=hi&gl=IN&ceid=IN:hi")
-        headlines = [entry.title for entry in feed.entries[:3]] # Top 3 news
+        if len(feed.entries) < 6: return
+        
+        # 🔥 HAR BAAR FRESH: Top 15 mein se 6 random khabarein nikalna
+        top_news = [entry.title for entry in feed.entries[:15]]
+        selected_news = random.sample(top_news, 6)
 
-        if not headlines: return
+        # 🎙️ 1.30 Minute ki Lamba aur Professional Script
+        script = "नमस्कार! डायमंड बैच न्यूज़ में आपका बहुत-बहुत स्वागत है। मैं हूँ आपकी एआई न्यूज़ एंकर। आइए नज़र डालते हैं इस वक्त की सबसे बड़ी और ताज़ा खबरों पर... "
+        script += f"शुरुआत करते हैं पहली बड़ी खबर से... {selected_news[0]}... "
+        script += f"आगे बढ़ते हैं, दूसरी ताज़ा अपडेट है... {selected_news[1]}... "
+        script += f"तीसरी प्रमुख खबर की ओर रुख करते हैं... {selected_news[2]}... "
+        script += f"वहीं, चौथी बड़ी खबर आ रही है कि... {selected_news[3]}... "
+        script += f"पांचवीं महत्वपूर्ण अपडेट... {selected_news[4]}... "
+        script += f"और आज के बुलेटिन की आखिरी प्रमुख खबर... {selected_news[5]}... "
+        script += "देश और दुनिया की पल-पल की ताज़ा अपडेट्स के लिए डायमंड बैच के साथ जुड़े रहें। अपना ख्याल रखें, धन्यवाद!"
 
-        # Anchor ki Script tayyar karna
-        script = f"नमस्कार! डायमंड बैच न्यूज़ में आपका स्वागत है। आज की सबसे बड़ी खबरें इस प्रकार हैं... पहली खबर: {headlines[0]}. दूसरी खबर: {headlines[1]}. तीसरी खबर: {headlines[2]}. ताज़ा खबरों के लिए जुड़े रहें, आपका समय शुभ हो!"
+        # 2. HF API se Sweet Female Voice (Swara) mangwana
+        res_tts = requests.post(f"{HF_API}/tts", data={
+            "text": script, 
+            "rate": "+0%", 
+            "voice": "hi-IN-SwaraNeural" # Sweet Female Voice
+        })
 
-        # 🚨 FIXED: HF API se News Anchor ki Voice Record karna
-        res_tts = requests.post(f"{HF_API}/tts", data={"text": script, "rate": "+0%"})
-
-        # FLUX AI se TV Studio Background Banana
+        # 3. FLUX AI se Female Anchor ki Photo
         flux_url = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
         headers_hf = {"Authorization": f"Bearer {HF_KEY}"}
-        img_prompt = "Professional TV news anchor studio desk with BREAKING NEWS graphics, cinematic lighting, 8k resolution, highly detailed"
+        img_prompt = "A beautiful and professional female Indian TV news anchor sitting at a futuristic news desk with BREAKING NEWS graphics, cinematic lighting, photorealistic"
         res_img = requests.post(flux_url, headers=headers_hf, json={"inputs": img_prompt}, timeout=60)
 
-        # Sabhi Active Groups mein Blast Karna!
+        # 4. Group mein Blast karna
         if res_tts.status_code == 200 and res_img.status_code == 200:
             from io import BytesIO
             for gid in list(active_groups):
                 try:
-                    bot.send_photo(gid, photo=res_img.content, caption="📰 **DAIMOND BATCH LIVE NEWS** 📰\n*(Powered by AI Anchor)*")
+                    bot.send_photo(gid, photo=res_img.content, caption="📰 **DAIMOND BATCH LIVE NEWS** 📰\n*(🎙️ Voice: AI Female Anchor)*")
                     
                     audio_bytes = BytesIO(res_tts.content)
                     audio_bytes.name = "news.ogg"
-                    bot.send_voice(gid, audio_bytes, caption="🎙️ *Aaj Ki Taaza Khabar sunne ke liye Play karein!*")
+                    bot.send_voice(gid, audio_bytes, caption="🎙️ *Aaj Ki 6 Badi Khabarein (1.5 Mins)*")
                 except Exception as e:
                     print(f"Group {gid} mein bhejne me error: {e}")
 
