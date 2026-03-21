@@ -2081,18 +2081,18 @@ def handle_all(message):
         bot.send_chat_action(message.chat.id, 'typing')
         clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
         if clean: bot.reply_to(message, get_ai_response(clean))
-if __name__ == "__main__":
 
+    
+if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     
-    # 🚨 NAYA: NEWS ANCHOR SCHEDULER (India Time ke hisaab se)
-    # Ye background mein chup-chap time dekhta rahega
+    # 🚨 NAYA: NEWS ANCHOR SCHEDULER (India Time)
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
-    # Subah 8:00 AM ke liye
-    scheduler.add_job(auto_news_broadcast, 'cron', hour=8, minute=0)
-    # Raat 8:00 PM (20:00) ke liye
-    scheduler.add_job(auto_news_broadcast, 'cron', hour=20, minute=0)
+    
+    # '*/3' ka matlab hai har 3 ghante mein exactly 00 minute par (Jaise 3:00, 6:00, 9:00, 12:00)
+    scheduler.add_job(auto_news_broadcast, 'cron', hour='*/3', minute=0)
+    
     scheduler.start()
     
     # Bot ko lagatar chalane ke liye
