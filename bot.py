@@ -603,9 +603,14 @@ def roast_cmd(message):
         res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
         ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
 
-        # 4. 🚨 FIXED: HF API se Rap Record Karna
+        # 4. HF API se Rap Record Karna (Bhaari aawaz + Rap Beat)
         safe_reply = ai_reply.replace('"', '').replace("'", "")
-        res_tts = requests.post(f"{HF_API}/tts", data={"text": safe_reply, "rate": "+10%"})
+        res_tts = requests.post(f"{HF_API}/tts", data={
+            "text": safe_reply, 
+            "rate": "+10%",
+            "voice": "hi-IN-MadhurNeural",
+            "bgm": "roast"  # 👈 YE NAYA ADD KIYA HAI
+        })
         
         if res_tts.status_code == 200:
             from io import BytesIO
@@ -754,7 +759,9 @@ def auto_news_broadcast():
         res_tts = requests.post(f"{HF_API}/tts", data={
             "text": script, 
             "rate": "+0%", 
-            "voice": "hi-IN-SwaraNeural" # Sweet Female Voice
+            "voice": "hi-IN-SwaraNeural" ,
+            "bgm": "news"
+            # Sweet Female Voice
         })
 
         # 3. FLUX AI se Female Anchor ki Photo
@@ -2056,6 +2063,106 @@ def callbacks(call):
             g['turn'] = g['p2'] if uid == g['p1'] else g['p1']
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
+
+# --- THE JAGIRDAR BOSS ENGINE ---
+
+JAGIRDAR_BRAIN = """
+Tera naam 'Jagirdar' hai. Tu Daimond Batch bot ka Supreme Boss aur Guide hai. 
+Tera kaam group ke logo ko bot ke features sikhana hai. Teri aawaz aur attitude ekdum raubdaar, confident aur boss jaisa hona chahiye. Hamesha chote, clear aur Hinglish mein jawab dena.
+
+Tere paas in sabki knowledge hai:
+1. Economy/Crime: /bal (balance), /daily, /weekly, /rob (chori karne ke liye shield nahi honi chahiye), /kill (khoon karke paise kamana), /shop (hathiyar lene ke liye), /shield (500 rs mein bachav).
+2. Games: /xo (TicTacToe), /sps (Stone Paper Scissor), /dice (Ludo), /spin (Casino), /dart.
+3. AI Features: /roast (gaali free rap roast), /video (motivational video), /hd (photo saaf karna), /sketch, /photo (BG remove), /read (text padhna).
+4. News: Har 3 ghante mein AI Female anchor aakar news deti hai.
+
+Agar koi puche ye sab kaise karna hai, toh usko sidha command aur tarika bata. Faltu baat mat karna, tu boss hai!
+"""
+
+# Text aur Voice dono pakadne wala khufiya radar
+@bot.message_handler(func=lambda m: True, content_types=['text', 'voice'])
+def jagirdar_monitor(message):
+    uid = message.from_user.id
+    
+    # AI Switch check
+    if "ai" in disabled_cmds and uid != ADMIN_ID: return 
+    
+    # Admin (Aap) ki baaton par gyan nahi dega, admin khud boss hai!
+    if uid == ADMIN_ID and not message.text.lower().startswith("jagirdar"): 
+        return
+        
+    user_input = ""
+    is_voice = False
+
+    try:
+        # 🎙️ 1. Agar user ne VOICE Note bheja hai
+        if message.content_type == 'voice':
+            # Groq API check
+            GROQ_KEY = os.environ.get('GROQ_KEY')
+            if not GROQ_KEY: return
+            
+            # Voice file download karna
+            file_info = bot.get_file(message.voice.file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+            
+            # Groq Whisper API se aawaz ko Text mein badalna
+            headers = {"Authorization": f"Bearer {GROQ_KEY}"}
+            files = {"file": ("audio.ogg", downloaded_file, "audio/ogg")}
+            data = {"model": "whisper-large-v3"}
+            res_stt = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data=data)
+            
+            if res_stt.status_code == 200:
+                user_input = res_stt.json().get("text", "").lower()
+                is_voice = True
+            else:
+                return # Samajh nahi aaya toh ignore
+        
+        # 📝 2. Agar user ne TEXT bheja hai
+        elif message.content_type == 'text':
+            user_input = message.text.lower()
+            
+        # 🎯 3. Trigger Words Check (Kab bolna hai)
+        trigger_words = ["jagirdar", "bot", "kaise", "kese", "help", "rob", "kill", "game khel"]
+        # Agar text mein trigger words hain, ya kisi ne usko direct voice bheji hai
+        if any(word in user_input for word in trigger_words) or is_voice:
+            
+            wait_msg = bot.reply_to(message, "👁️ *Jagirdar aapki baat par gaur kar raha hai...*", parse_mode="Markdown")
+            bot.send_chat_action(message.chat.id, 'record_voice')
+            
+            # 🧠 4. Groq LLaMA-3 (Jagirdar ka Dimaag)
+            GROQ_KEY = os.environ.get('GROQ_KEY')
+            headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
+            payload = {
+                "model": "llama-3.1-8b-instant", 
+                "messages": [
+                    {"role": "system", "content": JAGIRDAR_BRAIN}, 
+                    {"role": "user", "content": f"Sawal: {user_input}"}
+                ]
+            }
+            res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
+            ai_reply = res_chat.json()["choices"][0]["message"]["content"].strip()
+            safe_reply = ai_reply.replace('"', '').replace("'", "")
+
+            # 🗣️ 5. HF API se Voice Record (Madhur - Boss Voice)
+            res_tts = requests.post(f"{HF_API}/tts", data={
+                "text": safe_reply, 
+                "rate": "-5%", # Thodi bhari aur thehrav wali awaaz
+                "voice": "hi-IN-MadhurNeural",
+                "bgm": "none" # Isme BGM nahi chahiye warna baat samajh nahi aayegi
+            })
+            
+            if res_tts.status_code == 200:
+                audio_bytes = io.BytesIO(res_tts.content)
+                audio_bytes.name = "jagirdar.ogg"
+                bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **JAGIRDAR (The Boss)**\n💬 *\"{safe_reply}\"*")
+                bot.delete_message(message.chat.id, wait_msg.message_id)
+            else:
+                bot.edit_message_text("❌ Jagirdar ka mic kharab hai!", message.chat.id, wait_msg.message_id)
+                
+    except Exception as e:
+        print(f"Jagirdar Error: {e}") # Background mein fail hoga, group mein kachra nahi karega
+
+# Iske theek neeche aapka purana 'def handle_all(message):' hona chahiye...
 
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
