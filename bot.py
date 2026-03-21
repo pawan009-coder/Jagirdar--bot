@@ -1521,34 +1521,41 @@ def make_photo_hd(message):
         res = requests.post(f"{HF_API}/enhance", files={"image": downloaded_file}, timeout=60)
         
         if res.status_code == 200:
-            # 3. Watermark Engine: "jagirdar pawan" likhna
-            img = Image.open(io.BytesIO(res.content))
-            draw = ImageDraw.Draw(img)
-            
-            # Photo ke size ke hisaab se font bada/chota karna
-            font_size = max(30, int(img.height * 0.04)) 
-            try:
-                # Agar aapke paas koi stylish font hai toh wo use karega, warna default
-                font = ImageFont.truetype("font1.ttf", font_size)
-            except:
-                font = ImageFont.load_default()
-                
-            text = "jagirdar pawan"
-            
-            # Text ki lambai aur chaudai nikalna
-            bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-            
-            # Photo ke theek neeche beech mein (Bottom Center) set karna
-            x = (img.width - text_width) / 2
-            y = img.height - text_height - 30 
-            
-            # Text ke piche ek halka sa kaala (black) dabba banana taaki text hamesha chamke
-            draw.rectangle([x - 15, y - 10, x + text_width + 15, y + text_height + 15], fill=(0, 0, 0, 150))
-            
-            # Safed (White) rang se apna naam likhna
-            draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
+# --- WATERMARK ENGINE (Gemini/Meta AI Style) ---
+img = Image.open(io.BytesIO(res.content)).convert("RGBA")
+make_canvas = Image.new('RGBA', img.size, (0,0,0,0))
+draw = ImageDraw.Draw(make_canvas)
+
+# Font size photo ke hisaab se (thoda chota aur elegant)
+font_size = max(20, int(img.height * 0.03)) 
+try:
+    # Agar stylish font hai toh wo, warna default
+    font = ImageFont.truetype("Arial.ttf", font_size)
+except:
+    font = ImageFont.load_default()
+
+text = "jagirdar pawan"
+
+# Text ka size nikalna
+bbox = draw.textbbox((0, 0), text, font=font)
+tw = bbox[2] - bbox[0]
+th = bbox[3] - bbox[1]
+
+# Position: Bottom Right Corner (Thoda sa margin chhod kar)
+x = img.width - tw - 40
+y = img.height - th - 40
+
+# White color with transparency (Halka dikhne ke liye)
+# (255, 255, 255, 150) -> Yahan 150 transparency hai (0-255 tak hoti hai)
+draw.text((x, y), text, font=font, fill=(255, 255, 255, 160))
+
+# Dono images ko merge karna
+final_img = Image.alpha_composite(img, make_canvas).convert("RGB")
+
+# --- FINAL SENDING ---
+output = io.BytesIO()
+final_img.save(output, format="JPEG", quality=95)
+output.seek(0)
             
             # 4. Final VIP Photo ko Telegram par bhejna
             output = io.BytesIO()
