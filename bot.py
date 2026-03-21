@@ -1455,7 +1455,7 @@ def paper_cmd(message):
 
 @bot.message_handler(commands=['xo'])  # <--- YEH LINE LAGA DO
 def xo_start(message):
-    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(Admin ne abhi ye xommand band kr rakhi hai)
+    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "Admin ne abhi ye xommand band kr rakhi hai!")
     # ... baki aapka code
 
     try:
