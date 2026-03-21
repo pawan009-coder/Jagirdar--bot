@@ -1455,7 +1455,7 @@ def paper_cmd(message):
 
 @bot.message_handler(commands=['xo'])  # <--- YEH LINE LAGA DO
 def xo_start(message):
-    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(...)
+    if "xo" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(Admin ne abhi ye xommand band kr rakhi hai)
     # ... baki aapka code
 
     try:
@@ -1507,7 +1507,8 @@ def check_win(b):
 @bot.message_handler(commands=['hd', 'enhance'])
 def make_photo_hd(message):
     # Admin Lock Check
-    if "hd" in disabled_cmds and message.from_user.id != ADMIN_ID: return
+    if "hd" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
     
     if not message.reply_to_message or not message.reply_to_message.photo:
         return bot.reply_to(message, "📸 **Aise likho:**\nKisi blur ya purani photo par reply karke `/hd` likho sa!", parse_mode="Markdown")
@@ -1523,34 +1524,35 @@ def make_photo_hd(message):
         # 2. HF API par bhej kar Enhance (HD) karwana
         res = requests.post(f"{HF_API}/enhance", files={"image": downloaded_file}, timeout=60)
         
-     if res.status_code == 200:
+        if res.status_code == 200:
             # --- WATERMARK ENGINE (Gemini/Meta AI Style) ---
             img = Image.open(io.BytesIO(res.content)).convert("RGBA")
-            make_canvas = Image.new('RGBA', img.size, (0,0,0,0))
+            make_canvas = Image.new('RGBA', img.size, (0, 0, 0, 0))
             draw = ImageDraw.Draw(make_canvas)
 
             # Font size photo ke hisaab se (thoda chota aur elegant)
             font_size = max(20, int(img.height * 0.03)) 
             try:
+                # Agar Arial font server par hai toh wo chalega, warna default
                 font = ImageFont.truetype("Arial.ttf", font_size)
             except:
                 font = ImageFont.load_default()
 
             text = "jagirdar pawan"
 
-            # Text ka size nikalna
+            # Text ka size nikalna taaki corner mein fit kar sakein
             bbox = draw.textbbox((0, 0), text, font=font)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
 
-            # Position: Bottom Right Corner (Thoda sa margin chhod kar)
+            # Position: Bottom Right Corner (Edge se 40 pixels andar)
             x = img.width - tw - 40
             y = img.height - th - 40
 
-            # White color with transparency (Halka dikhne ke liye 160)
+            # White color with transparency (Halka dikhne ke liye alpha 160 rakha hai)
             draw.text((x, y), text, font=font, fill=(255, 255, 255, 160))
 
-            # Dono images ko merge karna
+            # Dono images ko merge karna aur wapas RGB mein convert karna
             final_img = Image.alpha_composite(img, make_canvas).convert("RGB")
 
             # --- FINAL SENDING ---
@@ -1567,6 +1569,7 @@ def make_photo_hd(message):
             
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
+        
 @bot.message_handler(commands=['deactivate'])
 def deactivate_cmd(message):
     if message.from_user.id != ADMIN_ID: return
