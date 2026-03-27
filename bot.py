@@ -31,7 +31,7 @@ API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 MONGO_URL = os.environ.get('MONGO_URL')
 # 🚀 HUGGING FACE PRIVATE API ENGINE LINK
-HF_API = "https://singhp08-daimond-batch.hf.space"
+HF_API = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
 # 🌐 RENDER DUMMY SERVER (Iske bina Render crash karega)
 app = Flask(__name__)
 
