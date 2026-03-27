@@ -886,6 +886,39 @@ def speak_cmd(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
+@bot.message_handler(commands=['nuke', 'resetall'])
+def nuke_database(message):
+    # सिर्फ एडमिन (Boss) ही ये बटन दबा सकता है
+    if message.from_user.id != ADMIN_ID: 
+        return bot.reply_to(message, "❌ तुम्हारी औकात नहीं है दुनिया खत्म करने की!")
+        
+    wait_msg = bot.reply_to(message, "⚠️ *सिस्टम रिसेट शुरू... सबके पैसे उड़ाए जा रहे हैं...*", parse_mode="Markdown")
+    
+    try:
+        # 1. RAM (Temporary Memory) में सबका डाटा 1000 कर दो
+        for uid in list(users.keys()):
+            users[uid]['bal'] = 1000
+            users[uid]['kills'] = 0
+            users[uid]['inventory'] = []
+            users[uid]['status'] = "Alive"
+            users[uid]['history'] = ["🚨 MAHA-PRALAY: नया जन्म!"]
+            # अगर किसी पर उधार है तो वो भी माफ़
+            if 'loan' in users[uid]:
+                users[uid]['loan'] = {"active": False, "lender_id": 0, "amount": 0, "due_time": 0}
+
+        # 2. इस नए (खाली) डाटा को तुरंत MongoDB में सेव कर दो
+        save_data()
+        
+        # 3. MongoDB से वो कचरा भी साफ़ कर दो जो RAM में नहीं है
+        users_db.delete_many({"_id": {"$ne": "bot_settings"}}) 
+        save_data() # वापस फ्रेश डाटा डाल दो
+        
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        bot.send_message(message.chat.id, "🌋 **MAHA-PRALAY COMPLETE!** 🌋\n\nबॉस का हुक्म! शहर के सारे बैंक खाली कर दिए गए हैं। चोर बाज़ार का सारा सामान जलकर ख़ाक हो गया है।\n\n**सबकी नई शुरुआत: 1000 Rs 💰**")
+        
+    except Exception as e:
+        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
+
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
     if "shield" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
@@ -2297,13 +2330,19 @@ def handle_all(message):
             bot.send_message(message.chat.id, f"🚫 **Link Blocked!**\n{message.from_user.first_name}, yahan ye sab kachra link mat bhej!")
             return # Aage AI ko reply karne se rok dega
         except: pass
+# Bot ka username nikalo
     bot_uname = f"@{bot.get_me().username.lower()}"
     
-    is_men = bot_uname in txt
+    # Check karo ki kya "Dhruva" likha hai (Hindi/English dono mein)
+    keywords = ["dhruva", "ध्रुव", "ध्रुवा"]
+    is_keyword = any(word in txt.lower() for word in keywords)
+    
+    # Inme se koi bhi 1 cheez sach hui toh bot reply dega
+    is_men = (bot_uname in txt.lower()) or is_keyword
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
     if is_prv or is_men or is_rep:
-        # 🚨 YAHAN NAYA VIP BUTTON LAGA DIYA HAI 🚨
+        # Baaki ka logic (Join Group/AI Response) yahan se shuru hoga...
         if not is_prv and not check_membership(uid):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
