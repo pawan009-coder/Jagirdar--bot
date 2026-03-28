@@ -2325,22 +2325,20 @@ def dhruva_assistant_monitor(message):
 
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
-    # 🔥 AI ka switch (Agar Admin ne band kiya toh AI kuch nahi bolega)
-    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return 
+    # 🔥 Sabse pehli line se 4 spaces ka gap shuru hona chahiye
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: 
+        return 
     
     is_prv = message.chat.type == 'private'
-    if not is_prv: active_groups.add(message.chat.id)
-    uid = message.from_user.id
-    txt = message.text.lower()
+    # ... baki code ...
     
-    # 🛑 SPAM & PORN TEXT FILTER
-    bad_words = ["pornhub.com", "xvideos.com", "xnxx.com", "xxx", "nude", "sex video", "brazzers"]
     if any(word in txt for word in bad_words) and uid != ADMIN_ID:
         try:
             bot.delete_message(message.chat.id, message.message_id)
-            bot.send_message(message.chat.id, f"🚫 **Link Blocked!**\n{message.from_user.first_name}, yahan ye sab kachra link mat bhej!")
-            return # Aage AI ko reply karne se rok dega
-        except: pass
+            # ... wagera wagera ...
+        except: 
+            pass # <--- Colon (:) ke baad space zaroori hai
+
 # Bot ka username nikalo
     bot_uname = f"@{bot.get_me().username.lower()}"
     
