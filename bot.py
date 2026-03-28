@@ -2329,53 +2329,53 @@ def dhruva_assistant_monitor(message):
 
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
-    # 🔥 Sabse pehli line se 4 spaces ka gap shuru hona chahiye
-    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: 
-        return 
-    
+    uid = message.from_user.id
+    txt = message.text.lower() if message.text else ""
     is_prv = message.chat.type == 'private'
-    # ... baki code ...
-    
-    if any(word in txt for word in bad_words) and uid != ADMIN_ID:
-        try:
-            bot.delete_message(message.chat.id, message.message_id)
-            # ... wagera wagera ...
-        except: 
-            pass # <--- Colon (:) ke baad space zaroori hai
 
-# Bot ka username nikalo
+    # --- 1. AI JSON LOGIC (Function ke andar 4 spaces aage) ---
+    import json
+    try: 
+        # Maan lo raw_ai_content aapko kahin se mil raha hai
+        ai_data = json.loads(raw_ai_content) 
+    except: 
+        ai_data = {"action": "chat", "target_name": "", "hindi_reply": "ठीक है बॉस।"}
+    
+    action = ai_data.get("action", "chat")
+    target_name = ai_data.get("target_name", "").lower()
+    hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+    
+    try: amount = int(ai_data.get("amount", 0))
+    except: amount = 0
+
+    # --- 2. ADMIN STEAL & POWERS (Ab ye sahi chalega) ---
+    u = get_user(message.from_user)
+
+    if action == "admin_steal" and uid == ADMIN_ID:
+        target_user = None
+        for t_id, t_data in users.items():
+            if target_name in t_data['name'].lower(): 
+                target_user = t_data; break
+        if target_user:
+            loot_amt = target_user['bal']; target_user['bal'] = 0; u['bal'] += loot_amt
+            hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये चुरा लिए।"
+        else: hindi_reply = "बॉस, वो बंदा नहीं मिला।"
+
+    # --- 3. DHRUVA KEYWORDS (Ye bhi function ke andar) ---
     bot_uname = f"@{bot.get_me().username.lower()}"
-    
-    # Check karo ki kya "Dhruva" likha hai (Hindi/English dono mein)
     keywords = ["dhruva", "ध्रुव", "ध्रुवा"]
-    is_keyword = any(word in txt.lower() for word in keywords)
-    
-    # Inme se koi bhi 1 cheez sach hui toh bot reply dega
-    is_men = (bot_uname in txt.lower()) or is_keyword
+    is_keyword = any(word in txt for word in keywords)
+    is_men = (bot_uname in txt) or is_keyword
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
     if is_prv or is_men or is_rep:
-        # Baaki ka logic (Join Group/AI Response) yahan se shuru hoga...
-        if not is_prv and not check_membership(uid):
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
-            return bot.reply_to(message, "⚠️ ** Bhai!**\n hamara official group join karo . Neeche button dabao 👇", reply_markup=markup, parse_mode="Markdown")
-            
-        bot.send_chat_action(message.chat.id, 'typing')
-        clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
-        if clean:
-            # 1. AI se jawab lo
-            ai_text = get_ai_response(clean)
-            
-            # 2. Voice mangwao tumhare HF Engine se
-            voice_data = get_dhruva_voice(ai_text)
-            
-            if voice_data:
-                # Agar aawaz mil gayi toh voice note bhejo
-                bot.send_voice(message.chat.id, voice_data, caption=ai_text)
-            else:
-                # Agar voice fail hui toh sirf text reply do
-                bot.reply_to(message, ai_text)
+        # AI aur Voice ka poora logic yahan...
+        ai_text = get_ai_response(txt)
+        voice_data = get_dhruva_voice(ai_text)
+        if voice_data:
+            bot.send_voice(message.chat.id, voice_data, caption=ai_text)
+        else:
+            bot.reply_to(message, ai_text)
 
     
 if __name__ == "__main__":
