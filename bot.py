@@ -2329,39 +2329,53 @@ def dhruva_assistant_monitor(message):
 
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
+    # --- 1. Basic Variables ---
     uid = message.from_user.id
     txt = message.text.lower() if message.text else ""
     is_prv = message.chat.type == 'private'
-
-    # --- 1. AI JSON LOGIC (Function ke andar 4 spaces aage) ---
-    import json
-    try: 
-        # Maan lo raw_ai_content aapko kahin se mil raha hai
-        ai_data = json.loads(raw_ai_content) 
-    except: 
-        ai_data = {"action": "chat", "target_name": "", "hindi_reply": "ठीक है बॉस।"}
     
+    # --- 2. Admin Check ---
+    if "ai" in disabled_cmds and uid != ADMIN_ID: 
+        return 
+
+    # --- 3. JSON Logic (Indented properly) ---
+    import json
+    # Yahan raw_ai_content ko define karna zaroori hai warna crash hoga
+    # Agar ye response AI se aa raha hai toh usse pehle yahan define karein
+    try:
+        # Example fix: Maan lo hum txt ko hi parse kar rahe hain (Change if needed)
+        ai_data = json.loads(txt) if '{' in txt else {}
+    except:
+        ai_data = {"action": "chat", "hindi_reply": "ठीक है बॉस।"}
+
     action = ai_data.get("action", "chat")
     target_name = ai_data.get("target_name", "").lower()
     hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
-    
-    try: amount = int(ai_data.get("amount", 0))
-    except: amount = 0
 
-    # --- 2. ADMIN STEAL & POWERS (Ab ye sahi chalega) ---
+    try:
+        amount = int(ai_data.get("amount", 0))
+    except:
+        amount = 0
+
+    # --- 4. User Data & Powers ---
     u = get_user(message.from_user)
 
+    # Admin Steal Logic
     if action == "admin_steal" and uid == ADMIN_ID:
         target_user = None
         for t_id, t_data in users.items():
-            if target_name in t_data['name'].lower(): 
-                target_user = t_data; break
+            if target_name in t_data['name'].lower():
+                target_user = t_data
+                break
         if target_user:
-            loot_amt = target_user['bal']; target_user['bal'] = 0; u['bal'] += loot_amt
-            hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये चुरा लिए।"
-        else: hindi_reply = "बॉस, वो बंदा नहीं मिला।"
+            loot_amt = target_user['bal']
+            target_user['bal'] = 0
+            u['bal'] += loot_amt
+            hindi_reply = f"जी बॉस! मैंने {target_name} से {loot_amt} रुपये निकाल लिए।"
+        else:
+            hindi_reply = "बॉस, वो बंदा नहीं मिला।"
 
-    # --- 3. DHRUVA KEYWORDS (Ye bhi function ke andar) ---
+    # --- 5. Dhruva Mention Logic ---
     bot_uname = f"@{bot.get_me().username.lower()}"
     keywords = ["dhruva", "ध्रुव", "ध्रुवा"]
     is_keyword = any(word in txt for word in keywords)
@@ -2369,26 +2383,28 @@ def handle_all(message):
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
     if is_prv or is_men or is_rep:
-        # AI aur Voice ka poora logic yahan...
+        if not is_prv and not check_membership(uid):
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("💎 Join Diamond Batch", url="https://t.me/Daimondbatch"))
+            return bot.reply_to(message, "⚠️ **Bhai!**\nJoin karo pehle.", reply_markup=markup, parse_mode="Markdown")
+            
+        bot.send_chat_action(message.chat.id, 'typing')
         ai_text = get_ai_response(txt)
         voice_data = get_dhruva_voice(ai_text)
+        
         if voice_data:
             bot.send_voice(message.chat.id, voice_data, caption=ai_text)
         else:
             bot.reply_to(message, ai_text)
 
-    
+# --- 6. Final Execution (Function ke BAHAAR) ---
 if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
     
-    # 🚨 NAYA: NEWS ANCHOR SCHEDULER (India Time)
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
-    
-    # '*/3' ka matlab hai har 3 ghante mein exactly 00 minute par (Jaise 3:00, 6:00, 9:00, 12:00)
     scheduler.add_job(auto_news_broadcast, 'cron', hour='*/3', minute=0)
-    
     scheduler.start()
     
-    # Bot ko lagatar chalane ke liye
+    print("🚀 Bot is running...")
     bot.infinity_polling()
