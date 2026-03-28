@@ -335,15 +335,18 @@ def admin_block_cmd(message):
         return bot.reply_to(message, f"📝 **Aise likho:** `{cmd} 123456789`\n(ID `/list` command se dekhein)", parse_mode="Markdown")
         
     if target_id not in users: return bot.reply_to(message, "❌ Ye user database mein nahi hai sa!")
-    if target_id == ADMIN_ID: return bot.reply_to(message, "❌ Boss! Khud ko block nahi kar sakte!")
+    
+    if target_id == ADMIN_ID: 
+        return bot.reply_to(message, "❌ Boss! Khud ko block nahi kar sakte!")
         
-     cmd == '/block':
+    elif cmd == '/block':  # <--- 'elif' lagaya aur 'if' ki seedh mein rakha
         users[target_id]['blocked'] = True
         bot.reply_to(message, f"🚫 **BANNED!**\nAb '{users[target_id]['name']}' bot ka koi bhi feature use nahi kar payega.")
+    
     else:
         users[target_id]['blocked'] = False
         bot.reply_to(message, f"✅ **UNBANNED!**\n'{users[target_id]['name']}' ko wapas azaadi mil gayi sa!")
-
+        
 # 🛒 CHOR BAZAAR KA SAMAAN
 SHOP_ITEMS = {
     "chakku": {"name": "🔪 Chakku", "price": 1500, "desc": "Rob karne par 200 Rs extra milenge."},
