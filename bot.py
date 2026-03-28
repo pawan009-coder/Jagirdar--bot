@@ -32,12 +32,6 @@ GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 MONGO_URL = os.environ.get('MONGO_URL')
 # 🚀 HUGGING FACE PRIVATE API ENGINE LINK
 HF_API = "https://singhp08-daimond-batch.hf.space"
-# 🌐 RENDER DUMMY SERVER (Iske bina Render crash karega)
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "🔥 Daimond Batch Bot is LIVE and Makkhan! 🔥"
 
 def run_server():
     # Render jo port dega uspar chalega, warna 10000 par
@@ -61,6 +55,16 @@ try:
 except Exception as e:
     print(f"❌ Database Error: {e}")
 
+def get_dhruva_voice(text):
+    try:
+        payload = {'text': text, 'voice': 'hi-IN-MadhurNeural'} 
+        response = requests.get(f"{HF_API}/tts", params=payload, timeout=60)
+        if response.status_code == 200:
+            return response.content
+        return None
+    except Exception as e:
+        return None
+        
 # Bot Initialization
 bot = telebot.TeleBot(API_TOKEN)
 
@@ -938,42 +942,30 @@ def buy_shield(message):
     u['bal'] -= 500
     u['shield_until'] = time.time() + 86400 # 24 Hours
     bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
-@bot.message_handler(commands=['imagine', 'img'])
-def generate_image(message):
-    # Lock Check
-    if "imagine" in disabled_cmds and message.from_user.id != ADMIN_ID: 
-        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-    
-    prompt = message.text.replace("/imagine", "").replace("/photo", "").strip()
-    if not prompt:
-        return bot.reply_to(message, "🎨 **Aise likho:**\n`/imagine ek udta hua ghoda aur Jodhpur ka qila`", parse_mode="Markdown")
-    
-    # 🚨 Render ki tijori se HF ki chaabi nikalna (Aapne naam 'H' rakha hai)
-    HF_KEY = os.environ.get('H')
-    if not HF_KEY:
-        return bot.reply_to(message, "❌ Boss! a hi nahi hua!")
-
-    wait_msg = bot.reply_to(message, "⏳ *photo banha raha hu, 10-20 second wait karo sa...*", parse_mode="Markdown")
-    bot.send_chat_action(message.chat.id, 'upload_photo')
-    
-    API_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
-    headers = {"Authorization": f"Bearer {HF_KEY}"}
-    payload = {"inputs": prompt}
-    
+@bot.message_handler(commands=['imagine', 'ai'])
+def handle_imagine(message):
     try:
-        # Timeout lamba rakha hai taaki heavy photo aaram se aa sake
-        res = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        if len(message.text.split()) < 2:
+            return bot.reply_to(message, "❌ **Bhai, kuch text toh likho photo banane ke liye!**")
+
+        prompt = message.text.split(' ', 1)[1]
+        msg = bot.reply_to(message, f"🌀 **Daimond Engine photo bana raha hai...**\n`{prompt}`")
         
-        if res.status_code == 200:
-            bot.send_photo(message.chat.id, photo=res.content, caption=f"🎨 **Yeh lijiye aapki AI Photo!**\n📝 Prompt: {prompt}")
-            bot.delete_message(message.chat.id, wait_msg.message_id)
-        elif res.status_code == 503:
-            # Jab model pehli baar load hota hai toh 503 error aata hai
-            bot.edit_message_text("⏳ Model abhi neend se jaag raha hai sa! Bas 20-30 second baad wapas command dalo, ekdum chal padega.", message.chat.id, wait_msg.message_id)
+        bot.send_chat_action(message.chat.id, 'upload_photo')
+
+        # 🚀 APNI Custom Engine को request भेज रहे हैं (Bina token ke)
+        payload = {'prompt': prompt}
+        # HF_API = "https://singhp08-daimond-batch.hf.space" होना चाहिए ऊपर
+        response = requests.post(f"{HF_API}/generate", json=payload, timeout=300)
+
+        if response.status_code == 200:
+            bot.send_photo(message.chat.id, response.content, caption=f"✨ `{prompt}`")
+            bot.delete_message(message.chat.id, msg.message_id)
         else:
-            bot.edit_message_text(f"❌ Kuch gadbad hui sa! Error Code: {res.status_code}", message.chat.id, wait_msg.message_id)
+            bot.edit_message_text(f"❌ **Engine Error: {response.status_code}**\nBhai, check karo HF Space active hai.", message.chat.id, msg.message_id)
+
     except Exception as e:
-        bot.edit_message_text("❌ Photo banne mein thodi dikkat hui. Wapas try karein sa!", message.chat.id, wait_msg.message_id)
+        bot.edit_message_text(f"⚠️ **Error:** {str(e)}", message.chat.id, msg.message_id)
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
@@ -1011,23 +1003,29 @@ import subprocess
 import requests
 
 @bot.message_handler(commands=['sketch'])
-def make_sketch(message):
-    if "sketch" in disabled_cmds and message.from_user.id != ADMIN_ID: return
-    if not message.reply_to_message or not message.reply_to_message.photo:
-        return bot.reply_to(message, "🎨 Kisi photo par reply karke `/sketch` likho sa!")
-        
-    wait_msg = bot.reply_to(message, "⏳ *Engine sketch bana raha hai...*")
-    try:
-        file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-        
-        res = requests.post(f"{HF_API}/sketch", files={"image": downloaded_file})
-        if res.status_code == 200:
-            bot.send_photo(message.chat.id, res.content, caption="🎨 **Daimond Batch Artist**\n✏️ Ye rahi Pencil Sketch!")
-            bot.delete_message(message.chat.id, wait_msg.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
+def handle_sketch(message):
+    reply = message.reply_to_message
+    if not reply or not reply.photo:
+        return bot.reply_to(message, "❌ **Bhai, kisi photo par reply karke /sketch likho!**")
 
+    msg = bot.reply_to(message, "🎨 **Daimond Engine sketch bana raha hai...**")
+    
+    try:
+        file_info = bot.get_file(reply.photo[-1].file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+
+        # 🚀 APNI Custom Engine ko request bhejo
+        files = {'image': ('input.jpg', downloaded_file, 'image/jpeg')}
+        response = requests.post(f"{HF_API}/sketch", files=files, timeout=60)
+
+        if response.status_code == 200:
+            bot.send_photo(message.chat.id, response.content, caption="✅ **Lo bhai, tumhara sketch taiyar hai!**")
+            bot.delete_message(message.chat.id, msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ **Engine Error: {response.status_code}**", message.chat.id, msg.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"⚠️ **Error:** {str(e)}", message.chat.id, msg.message_id)
+        
 @bot.message_handler(commands=['ask'])
 def ask_ai_voice(message):
     # Lock Check
@@ -1217,27 +1215,34 @@ def rob_cmd(message):
     bot.reply_to(message, msg)
 
 @bot.message_handler(commands=['photo'])
-def remove_background_cmd(message):
-    if "photo" in disabled_cmds and message.from_user.id != ADMIN_ID: return
-    if not message.reply_to_message or not message.reply_to_message.photo:
-        return bot.reply_to(message, "📸 **Aise likho:**\nKisi photo par reply karke `/photo` likho sa!", parse_mode="Markdown")
-        
-    wait_msg = bot.reply_to(message, "⏳ *background mita raha hu...*")
+def handle_photo_command(message):
+    reply = message.reply_to_message
+    if not reply or not reply.photo:
+        return bot.reply_to(message, "❌ **Bhai, kisi photo par reply karke /photo likho!**")
+
+    msg = bot.reply_to(message, "⏳ **Daimond Engine background saaf kar raha hai...**")
+    
     try:
-        file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
+        # 1. Photo download karo
+        file_info = bot.get_file(reply.photo[-1].file_id)
         downloaded_file = bot.download_file(file_info.file_path)
+
+        # 2. APNI HF Engine (app.py) ko request bhejo
+        # Yahan /bg-remove wahi endpoint hai jo aapne app.py mein banaya hai
+        files = {'image': ('input.png', downloaded_file, 'image/png')}
         
-        res = requests.post(f"{HF_API}/bg-remove", files={"image": downloaded_file})
-        if res.status_code == 200:
-            from io import BytesIO
-            final_png = BytesIO(res.content)
-            final_png.name = "transparent.png"
-            bot.send_document(message.chat.id, final_png, caption="📸 **Daimond Batch BG Remover**")
-            bot.delete_message(message.chat.id, wait_msg.message_id)
+        # HF_API = "https://singhp08-daimond-batch.hf.space" hona chahiye upar
+        response = requests.post(f"{HF_API}/bg-remove", files=files, timeout=80)
+
+        if response.status_code == 200:
+            # 3. Photo wapas bhejo
+            bot.send_document(message.chat.id, response.content, visible_file_name="no_bg.png", caption="✅ **Background hat gaya!**")
+            bot.delete_message(message.chat.id, msg.message_id)
         else:
-            bot.edit_message_text("❌ Engine ne nakhre kiye sa!", message.chat.id, wait_msg.message_id)
+            bot.edit_message_text(f"❌ **Endpoint Error: {response.status_code}**\nCheck karo HF Space 'Running' hai ya nahi.", message.chat.id, msg.message_id)
+
     except Exception as e:
-        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
+        bot.edit_message_text(f"⚠️ **Connection Error:** {str(e)}", message.chat.id, msg.message_id)
             
 # 3. 👁️ NAYA OCR / READER (API se) - FIXED
 @bot.message_handler(commands=['read', 'ocr'])
@@ -2131,7 +2136,7 @@ Actions जो तुम ले सकते हो:
 1. "check_balance": अगर यूजर अपना बैलेंस या डिटेल्स पूछे।
 2. "kill": अगर यूजर किसी को मारने को कहे।
 3. "rob": अगर यूजर किसी को लूटने को कहे।
-4. "admin_steal": अगर 'बॉस' (Admin) किसी का पैसा बिना शील्ड के चुराने को कहे।
+4. "admin_steal": अगर 'बॉस' (Admin) किसी का पैसा बिना शील्ड के चुरा ने को कहे।
 5. "chat": अगर कोई नार्मल बात हो।
 7. "claim_reward": अगर यूजर अपना डेली (daily) या वीकली (weekly) इनाम मांगे।
 8. "buy_item": अगर यूजर दुकान (shop) से कुछ खरीदने को कहे (जैसे: कुत्ता, चक्कू, जैकेट, शील्ड)।
@@ -2145,8 +2150,6 @@ OUTPUT FORMAT (Strictly JSON):
   "hindi_reply": "तुम्हारा शानदार और एटीट्यूड वाला हिंदी जवाब।"
 }
 """
-
-ELEVENLABS_VOICE_ID = "WuePGPKIAIKI8COZpzce" # 👈 यहाँ अपनी असली Voice ID डालना मत भूलना!
 
 # 🚨 THE FIX: Dhruva सिर्फ तब जागेगा जब उसके मतलब की बात हो!
 def is_dhruva(message):
@@ -2182,7 +2185,7 @@ def dhruva_assistant_monitor(message):
         else:
             user_input = message.text.lower()
             
-        wait_msg = bot.reply_to(message, "👁️ *ध्रुव आपकी बात समझ रहा है...*", parse_mode="Markdown")
+        wait_msg = bot.reply_to(message, "👁️ ...*", parse_mode="Markdown")
         bot.send_chat_action(message.chat.id, 'record_voice')
         
         GROQ_KEY = os.environ.get('GROQ_KEY')
@@ -2288,27 +2291,24 @@ def dhruva_assistant_monitor(message):
                 hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
             else: hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
-        # ElevenLabs Voice Generation
-        ELEVENLABS_KEY = os.environ.get('ELEVENLABS_KEY')
-        if ELEVENLABS_KEY:
-            eleven_url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
-            headers_el = {"xi-api-key": ELEVENLABS_KEY, "Content-Type": "application/json"}
-            payload_el = {"text": hindi_reply, "model_id": "eleven_multilingual_v2", "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}}
-            res_tts = requests.post(eleven_url, headers=headers_el, json=payload_el)
+        if is_prv or is_men or is_rep:
+        # Membership check logic yahan rahega...
+        
+        bot.send_chat_action(message.chat.id, 'typing')
+        clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
+        
+        if clean:
+            # 1. AI se text jawab lo
+            ai_text = get_ai_response(clean)
             
-            if res_tts.status_code == 200:
-                from io import BytesIO
-                audio_bytes = BytesIO(res_tts.content)
-                audio_bytes.name = "dhruva.ogg"
-                bot.send_voice(message.chat.id, audio_bytes, caption=f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}")
-            else: bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n\n⚠️ **Error Report:** `{res_tts.text}`")
-        else: bot.send_message(message.chat.id, f"🕴️ **DHRUVA AI**\n💬 {hindi_reply}\n*(ElevenLabs Key Missing)*")
+            # 2. Hamare FREE Hugging Face engine se voice lo
+            voice_data = get_dhruva_voice(ai_text)
+            
+            if voice_data:
+    bot.send_voice(message.chat.id, voice_data, caption=ai_text)
+else:
+    bot.reply_to(message, ai_text)
 
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-            
-    except Exception as e:
-        bot.send_message(message.chat.id, f"⚠️ **Dhruva System Error:** `{str(e)[:150]}`", parse_mode="Markdown")
-        print(f"Dhruva Error: {e}") 
 
 # Yahan neeche aapka purana def handle_all(message): aayega
 
@@ -2350,7 +2350,19 @@ def handle_all(message):
             
         bot.send_chat_action(message.chat.id, 'typing')
         clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
-        if clean: bot.reply_to(message, get_ai_response(clean))
+        if clean:
+            # 1. AI se jawab lo
+            ai_text = get_ai_response(clean)
+            
+            # 2. Voice mangwao tumhare HF Engine se
+            voice_data = get_dhruva_voice(ai_text)
+            
+            if voice_data:
+                # Agar aawaz mil gayi toh voice note bhejo
+                bot.send_voice(message.chat.id, voice_data, caption=ai_text)
+            else:
+                # Agar voice fail hui toh sirf text reply do
+                bot.reply_to(message, ai_text)
 
     
 if __name__ == "__main__":
