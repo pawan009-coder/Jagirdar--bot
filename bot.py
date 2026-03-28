@@ -2210,16 +2210,20 @@ def dhruva_assistant_monitor(message):
         raw_ai_content = res_chat.json()["choices"][0]["message"]["content"].strip()
         
         import json
-        try: ai_data = json.loads(raw_ai_content)
-        except: ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
+        try: 
+            ai_data = json.loads(raw_ai_content)
+        except: 
+            ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
         
         action = ai_data.get("action", "chat")
         target_name = ai_data.get("target_name", "").lower()
         hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
         
         # 🚨 THE FIX: Amount निकालना (इसके बिना क्रैश हो रहा था)
-        try: amount = int(ai_data.get("amount", 0))
-        except: amount = 0
+        try: 
+            amount = int(ai_data.get("amount", 0))
+        except: 
+            amount = 0
 
         u = get_user(message.from_user)
 
