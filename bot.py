@@ -2285,32 +2285,40 @@ def dhruva_assistant_monitor(message):
                 hindi_reply = f"बॉस, इस शहर के टॉप 3 सबसे अमीर लोग हैं: {top_names}।"
             else: hindi_reply = "बॉस, अभी तक डेटाबेस में कोई नहीं है।"
 
+        # --- Ye wala hissa function ke andar 4 spaces aage hona chahiye ---
         elif action == "admin_steal" and uid == ADMIN_ID:
             target_user = None
             for t_id, t_data in users.items():
-                if target_name in t_data['name'].lower(): target_user = t_data; break
+                if target_name in t_data['name'].lower(): 
+                    target_user = t_data
+                    break
             if target_user:
-                loot_amt = target_user['bal']; target_user['bal'] = 0; u['bal'] += loot_amt
-                hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
-            else: hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
+                loot_amt = target_user['bal']
+                target_user['bal'] = 0
+                u['bal'] += loot_amt
+                hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
+            else: 
+                hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
+        # 🚨 FIXED INDENTATION STARTING FROM HERE
         if is_prv or is_men or is_rep:
-        # Membership check logic yahan rahega...
-        
-        bot.send_chat_action(message.chat.id, 'typing')
-        clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
-        
-        if clean:
-            # 1. AI se text jawab lo
-            ai_text = get_ai_response(clean)
+            # Membership check logic yahan rahega...
             
-            # 2. Hamare FREE Hugging Face engine se voice lo
-            voice_data = get_dhruva_voice(ai_text)
+            bot.send_chat_action(message.chat.id, 'typing')
+            clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
             
-        if voice_data:
-            bot.send_voice(message.chat.id, voice_data, caption=ai_text) # ✅ SAHI: Ab ye indent hai
-        else:
-            bot.reply_to(message, ai_text)
+            if clean:
+                # 1. AI se text jawab lo
+                ai_text = get_ai_response(clean)
+                
+                # 2. Hamare FREE Hugging Face engine se voice lo
+                voice_data = get_dhruva_voice(ai_text)
+                
+                # 3. Voice check aur reply (Isse 'if clean' ke andar hona chahiye)
+                if voice_data:
+                    bot.send_voice(message.chat.id, voice_data, caption=ai_text)
+                else:
+                    bot.reply_to(message, ai_text)
 
 
 # Yahan neeche aapka purana def handle_all(message): aayega
