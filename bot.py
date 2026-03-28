@@ -337,7 +337,7 @@ def admin_block_cmd(message):
     if target_id not in users: return bot.reply_to(message, "❌ Ye user database mein nahi hai sa!")
     if target_id == ADMIN_ID: return bot.reply_to(message, "❌ Boss! Khud ko block nahi kar sakte!")
         
-    if cmd == '/block':
+     cmd == '/block':
         users[target_id]['blocked'] = True
         bot.reply_to(message, f"🚫 **BANNED!**\nAb '{users[target_id]['name']}' bot ka koi bhi feature use nahi kar payega.")
     else:
@@ -2304,10 +2304,10 @@ def dhruva_assistant_monitor(message):
             # 2. Hamare FREE Hugging Face engine se voice lo
             voice_data = get_dhruva_voice(ai_text)
             
-            if voice_data:
-    bot.send_voice(message.chat.id, voice_data, caption=ai_text)
-else:
-    bot.reply_to(message, ai_text)
+        if voice_data:
+            bot.send_voice(message.chat.id, voice_data, caption=ai_text) # ✅ SAHI: Ab ye indent hai
+        else:
+            bot.reply_to(message, ai_text)
 
 
 # Yahan neeche aapka purana def handle_all(message): aayega
