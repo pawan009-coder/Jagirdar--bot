@@ -2344,9 +2344,9 @@ def handle_all(message):
         ai_data = {"action": "chat", "hindi_reply": "ठीक है बॉस।"}
 
     # --- 🟢 CORRECTED BLOCK ---
-        action = ai_data.get("action", "chat")
-        target_name = ai_data.get("target_name", "").lower()
-        hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+    action = ai_data.get("action", "chat")
+    target_name = ai_data.get("target_name", "").lower()
+    hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
 
         try:
             amount = int(ai_data.get("amount", 0))
