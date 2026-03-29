@@ -2201,6 +2201,11 @@ def dhruva_assistant_monitor(message):
             ],
             "response_format": {"type": "json_object"}
         }
+    # Ye aapke payload ka purana bracket hai
+        
+    except Exception as e:
+        print(f"Error in monitor: {e}")
+        return
         
         res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
         
@@ -2344,9 +2349,9 @@ def handle_all(message):
         ai_data = {"action": "chat", "hindi_reply": "ठीक है बॉस।"}
 
     # --- 🟢 CORRECTED BLOCK ---
-    action = ai_data.get("action", "chat")
-    target_name = ai_data.get("target_name", "").lower()
-    hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+        action = ai_data.get("action", "chat")
+        target_name = ai_data.get("target_name", "").lower()
+        hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
 
         try:
             amount = int(ai_data.get("amount", 0))
