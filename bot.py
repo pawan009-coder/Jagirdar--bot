@@ -2335,7 +2335,7 @@ def handle_all(message):
 
     # --- 3. JSON Logic (Indented properly) ---
     import json
-    # Yahan raw_ai_content ko define karna zaroori hai warna crash hoga
+    # Yahan raw_ai_content ko define karna zaroori haiwarna crash hoga
     # Agar ye response AI se aa raha hai toh usse pehle yahan define karein
     try:
         # Example fix: Maan lo hum txt ko hi parse kar rahe hain (Change if needed)
@@ -2348,6 +2348,8 @@ def handle_all(message):
     hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
     try:
         amount = int(ai_data.get("amount", 0))
+    except (ValueError, TypeError):
+        amount = 0
     except:
         amount = 0
     except (ValueError, TypeError):
