@@ -2345,20 +2345,12 @@ def handle_all(message):
 
     action = ai_data.get("action", "chat")
     target_name = ai_data.get("target_name", "").lower()
-    hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+        hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
     try:
         amount = int(ai_data.get("amount", 0))
-    except (ValueError, TypeError):
-        amount = 0
     except:
         amount = 0
     except (ValueError, TypeError):
-        amount = 0
-    except:
-        amount = 0
-    except (ValueError, TypeError):
-        amount = 0
-    except:
         amount = 0
     except:
       
