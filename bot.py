@@ -2322,23 +2322,6 @@ def dhruva_assistant_monitor(message):
             else: 
                 hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
-        # --- FINAL REPLY LOGIC ---
-        if is_prv or is_men or is_rep:
-            bot.send_chat_action(message.chat.id, 'typing')
-            bot_uname = f"@{bot.get_me().username}"
-            clean = txt.replace(bot_uname.lower(), "").strip() if not is_prv else txt.strip()
-            
-            if clean:
-                ai_text = get_ai_response(clean)
-                voice_data = get_dhruva_voice(ai_text)
-                
-                if voice_data:
-                    bot.send_voice(message.chat.id, voice_data, caption=ai_text)
-                else:
-                    bot.reply_to(message, ai_text)
-
-# Yahan neeche aapka purana def handle_all(message): aayega
-
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
     # --- 1. Basic Variables ---
@@ -2394,7 +2377,7 @@ def handle_all(message):
     is_men = (bot_uname in txt) or is_keyword
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
-    elif is_prv or is_men or is_rep:
+      if is_prv or is_men or is_rep:
         if not is_prv and not check_membership(uid):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("💎 Join Diamond Batch", url="https://t.me/Daimondbatch"))
