@@ -2219,7 +2219,7 @@ def dhruva_assistant_monitor(message):
         target_name = ai_data.get("target_name", "").lower()
         hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
         
-        # 🚨 THE FIX: Amount निकालना (इसके बिना क्रैश हो रहा था)
+        # 🚨 THE FIX: Amount nikalna (Proper Indentation)
         try: 
             amount = int(ai_data.get("amount", 0))
         except: 
@@ -2233,63 +2233,81 @@ def dhruva_assistant_monitor(message):
             hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
 
         elif action == "give_money":
-            if amount <= 0: hindi_reply = "बॉस, आपने यह नहीं बताया कि कितने पैसे देने हैं!"
-            elif u['bal'] < amount: hindi_reply = f"बॉस, आपके अकाउंट में इतने पैसे नहीं हैं। आपका बैलेंस सिर्फ {u['bal']} रुपये है।"
+            if amount <= 0: 
+                hindi_reply = "बॉस, आपने यह नहीं बताया कि कितने पैसे देने हैं!"
+            elif u['bal'] < amount: 
+                hindi_reply = f"बॉस, आपके अकाउंट में इतने पैसे नहीं हैं। आपका बैलेंस सिर्फ {u['bal']} रुपये है।"
             else:
                 target_user = None
                 for t_id, t_data in users.items():
                     if target_name in t_data['name'].lower():
-                        target_user = t_data; break
+                        target_user = t_data
+                        break
                 if target_user:
-                    u['bal'] -= amount; target_user['bal'] += amount
+                    u['bal'] -= amount
+                    target_user['bal'] += amount
                     hindi_reply = f"जी बॉस! मैंने आपके अकाउंट से {amount} रुपये निकालकर {target_name} को दे दिए हैं।"
-                else: hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
+                else: 
+                    hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
         elif action == "claim_reward":
             t_now = time.time()
             multiplier = 2 if "👑 Don Taj" in u.get('inventory', []) else 1
             if t_now - u['last_daily'] > 86400:
-                u['bal'] += 200 * multiplier; u['last_daily'] = t_now
-                hindi_reply = f"जी बॉस! मैंने आपका डेली इनाम क्लेम कर लिया है। आपके अकाउंट में {200 * multiplier} रुपये जुड़ गए हैं।"
-            else: hindi_reply = "बॉस, आपका डेली इनाम अभी टाइम-लॉक में है। आपको कल तक इंतज़ार करना होगा।"
+                u['bal'] += 200 * multiplier
+                u['last_daily'] = t_now
+                hindi_reply = f"जी बॉस! मैंने आपका डेली इनाम क्लेम कर लिया है। आपके अकाउंट में {200 * multiplier} रुपये जुड़ गए हैं।"
+            else: 
+                hindi_reply = "बॉस, आपका डेली इनाम अभी टाइम-लॉक में है। आपको कल तक इंतज़ार करना होगा।"
 
         elif action == "buy_item":
             item_query = target_name.lower()
             if "shield" in item_query or "शील्ड" in item_query:
                 if u['bal'] >= 500:
-                    u['bal'] -= 500; u['shield_until'] = time.time() + 86400
+                    u['bal'] -= 500
+                    u['shield_until'] = time.time() + 86400
                     hindi_reply = "बॉस, 500 रुपये देकर मैंने आपकी शील्ड लगा दी है। अगले 24 घंटे तक कोई आपको लूट नहीं सकता।"
-                else: hindi_reply = "बॉस, शील्ड के लिए 500 रुपये चाहिए, जो आपके बैंक में नहीं हैं।"
+                else: 
+                    hindi_reply = "बॉस, शील्ड के लिए 500 रुपये चाहिए, जो आपके बैंक में नहीं हैं।"
             else:
                 found_item = None
                 for k, v in SHOP_ITEMS.items():
-                    if k in item_query or v['name'].lower().split()[-1].lower() in item_query: found_item = v; break
+                    if k in item_query or v['name'].lower().split()[-1].lower() in item_query: 
+                        found_item = v
+                        break
                 if found_item:
                     if u['bal'] >= found_item['price']:
-                        u['bal'] -= found_item['price']; u["inventory"].append(found_item['name'])
+                        u['bal'] -= found_item['price']
+                        u["inventory"].append(found_item['name'])
                         hindi_reply = f"जी बॉस! मैंने {found_item['price']} रुपये खर्च करके आपके लिए '{found_item['name']}' खरीद लिया है।"
-                    else: hindi_reply = f"बॉस, '{found_item['name']}' बहुत महंगा है। हमारे पास इतने पैसे नहीं हैं।"
-                else: hindi_reply = "बॉस, मुझे चोर बाज़ार में ऐसा कोई सामान नहीं मिला।"
+                    else: 
+                        hindi_reply = f"बॉस, '{found_item['name']}' बहुत महंगा है। हमारे पास इतने पैसे नहीं हैं।"
+                else: 
+                    hindi_reply = "बॉस, मुझे चोर बाज़ार में ऐसा कोई सामान नहीं मिला।"
 
         elif action == "play_game":
-            if amount <= 0: hindi_reply = "बॉस, गेम खेलने के लिए मुझे बताएं कि कितने पैसे दांव पर लगाने हैं!"
-            elif u['bal'] < amount: hindi_reply = "बॉस, आपके पास दांव लगाने के लिए इतने पैसे नहीं हैं।"
+            if amount <= 0: 
+                hindi_reply = "बॉस, गेम खेलने के लिए मुझे बताएं कि कितने पैसे दांव पर लगाने हैं!"
+            elif u['bal'] < amount: 
+                hindi_reply = "बॉस, आपके पास दांव लगाने के लिए इतने पैसे नहीं हैं।"
             else:
                 import random
                 u['bal'] -= amount
                 if random.randint(1, 100) <= 40:
-                    win_amt = amount * 2; u['bal'] += win_amt
+                    win_amt = amount * 2
+                    u['bal'] += win_amt
                     hindi_reply = f"बधाई हो बॉस! हम गेम जीत गए। मैंने {amount} लगाए थे और उसे डबल करके {win_amt} रुपये अकाउंट में डाल दिए हैं!"
-                else: hindi_reply = f"बॉस, किस्मत ख़राब थी। हम गेम में {amount} रुपये हार गए हैं।"
+                else: 
+                    hindi_reply = f"बॉस, किस्मत ख़राब थी। हम गेम में {amount} रुपये हार गए हैं।"
 
         elif action == "check_leaderboard":
             sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)[:3]
             if sorted_users:
                 top_names = ", ".join([f"{data['name']} ({data['bal']} Rs)" for uid, data in sorted_users])
                 hindi_reply = f"बॉस, इस शहर के टॉप 3 सबसे अमीर लोग हैं: {top_names}।"
-            else: hindi_reply = "बॉस, अभी तक डेटाबेस में कोई नहीं है।"
+            else: 
+                hindi_reply = "बॉस, अभी तक डेटाबेस में कोई नहीं है।"
 
-        # --- Ye wala hissa function ke andar 4 spaces aage hona chahiye ---
         elif action == "admin_steal" and uid == ADMIN_ID:
             target_user = None
             for t_id, t_data in users.items():
@@ -2304,26 +2322,20 @@ def dhruva_assistant_monitor(message):
             else: 
                 hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
 
-        # 🚨 FIXED INDENTATION STARTING FROM HERE
+        # --- FINAL REPLY LOGIC ---
         if is_prv or is_men or is_rep:
-            # Membership check logic yahan rahega...
-            
             bot.send_chat_action(message.chat.id, 'typing')
-            clean = txt.replace(bot_uname, "").strip() if not is_prv else txt.strip()
+            bot_uname = f"@{bot.get_me().username}"
+            clean = txt.replace(bot_uname.lower(), "").strip() if not is_prv else txt.strip()
             
             if clean:
-                # 1. AI se text jawab lo
                 ai_text = get_ai_response(clean)
-                
-                # 2. Hamare FREE Hugging Face engine se voice lo
                 voice_data = get_dhruva_voice(ai_text)
                 
-                # 3. Voice check aur reply (Isse 'if clean' ke andar hona chahiye)
                 if voice_data:
                     bot.send_voice(message.chat.id, voice_data, caption=ai_text)
                 else:
                     bot.reply_to(message, ai_text)
-
 
 # Yahan neeche aapka purana def handle_all(message): aayega
 
