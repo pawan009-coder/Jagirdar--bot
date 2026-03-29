@@ -2348,6 +2348,8 @@ def handle_all(message):
     hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
     try:
         amount = int(ai_data.get("amount", 0))
+    except:
+        amount = 0
     except (ValueError, TypeError):
         amount = 0
     except:
