@@ -18,6 +18,13 @@ from flask import Flask
 import threading
 import urllib.parse
 import pymongo 
+import os
+from rvc_python.infer import RVCInference
+
+# Models ka rasta (Jo aapne GitHub pe upload kiye hain)
+ELVISH_PTH = "models/elvish.pth"
+ELVISH_INDEX = "models/elvish.index"
+ADMIN_ID =  7574760011 # <--- Yahan apni asli Telegram ID dalo
 
 # Flask Server Setup (Render ke liye zaroori)
 app = Flask('')
@@ -1246,7 +1253,52 @@ def handle_photo_command(message):
 
     except Exception as e:
         bot.edit_message_text(f"⚠️ **Connection Error:** {str(e)}", message.chat.id, msg.message_id)
-            
+
+@bot.message_handler(commands=['elvish'])
+def handle_elvish_voice(message):
+    # 1. Sirf Admin ke liye check
+    if message.from_user.id != ADMIN_ID:
+        bot.reply_to(message, "❌ Ye command sirf Admin ke liye hai!")
+        return
+
+    # 2. Text nikalna (Reply se ya command ke aage se)
+    text_to_convert = ""
+    if message.reply_to_message and message.reply_to_message.text:
+        text_to_convert = message.reply_to_message.text
+    else:
+        text_to_convert = message.text.replace("/elvish", "").strip()
+
+    if not text_to_convert:
+        bot.reply_to(message, "💬 Bhai, kuch likho ya kisi message pe reply karo!")
+        return
+
+    msg = bot.reply_to(message, "🎙️ Elvish ki awaaz mein convert kar raha hoon...")
+
+    try:
+        # Step A: Text to Speech (Normal Voice)
+        from gtts import gTTS
+        tts = gTTS(text=text_to_convert, lang='hi')
+        tts.save("temp_normal.mp3")
+
+        # Step B: RVC Voice Cloning (Trained Model)
+        rvc = RVCInference(device="cpu")
+        rvc.load_model(ELVISH_PTH)
+        rvc.infer(
+            input_path="temp_normal.mp3",
+            index_path=ELVISH_INDEX,
+            output_path="elvish_voice.mp3",
+            f0method="rmvpe"
+        )
+
+        # Step C: Voice bhejna
+        with open("elvish_voice.mp3", "rb") as voice:
+            bot.send_voice(message.chat.id, voice, reply_to_message_id=message.message_id)
+        
+        bot.delete_message(message.chat.id, msg.message_id)
+
+    except Exception as e:
+        bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
+           
 # 3. 👁️ NAYA OCR / READER (API se) - FIXED
 @bot.message_handler(commands=['read', 'ocr'])
 def read_image_text(message):
