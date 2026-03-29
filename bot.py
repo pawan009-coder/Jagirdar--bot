@@ -2352,6 +2352,8 @@ def handle_all(message):
         amount = 0
     except:
         amount = 0
+    except:
+        amount = 0
 
     # --- 4. User Data & Powers ---
     u = get_user(message.from_user)
