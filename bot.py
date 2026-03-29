@@ -2353,6 +2353,10 @@ def handle_all(message):
         target_name = ai_data.get("target_name", "").lower()
         hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
 
+
+        action = "chat"
+        target_name = ""
+        u = None
         try:
             amount = int(ai_data.get("amount", 0))
         except:
