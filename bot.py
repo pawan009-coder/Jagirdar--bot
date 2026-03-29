@@ -2382,7 +2382,7 @@ def handle_all(message):
     is_men = (bot_uname in txt) or is_keyword
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
-    if is_prv or is_men or is_rep:
+    elif is_prv or is_men or is_rep:
         if not is_prv and not check_membership(uid):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("💎 Join Diamond Batch", url="https://t.me/Daimondbatch"))
