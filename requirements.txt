@@ -8,3 +8,6 @@ yt-dlp
 feedparser
 apscheduler
 pytz
+rvc-python
+torch --index-url https://download.pytorch.org/whl/cpu
+gTTS
