@@ -1,4 +1,7 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+hatchling
+setuptools
+wheel
+omegaconf==2.0.6
 pyTelegramBotAPI
 requests
 flask
@@ -10,8 +13,7 @@ feedparser
 apscheduler
 pytz
 gTTS
-setuptools
-wheel
-rvc-python
+--index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
+rvc-python
