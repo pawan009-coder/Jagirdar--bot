@@ -1,3 +1,4 @@
+# 1. Pehle normal libraries (PyPI se)
 hatchling
 setuptools
 wheel
@@ -13,7 +14,9 @@ feedparser
 apscheduler
 pytz
 gTTS
---index-url https://download.pytorch.org/whl/cpu
+
+# 2. Ab specific Torch libraries (CPU Index se)
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
 rvc-python
