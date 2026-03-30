@@ -2400,6 +2400,7 @@ def dhruva_assistant_monitor(message):
 def handle_all(message):
     # --- 1. Basic Variables ---
     uid = message.from_user.id
+    action = None
     txt = message.text.lower() if message.text else ""
     is_prv = message.chat.type == 'private'
     
