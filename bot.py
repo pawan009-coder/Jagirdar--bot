@@ -2376,14 +2376,18 @@ def handle_all(message):
         sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
         
         try:
-            payload = {"text": message.text, "model": selected_model}
+            payload = {
+            text = message.text.replace("/voice", "").strip(),
+            "model": "elvish"}
+            print("Sending to RVC:", payload)
             response = requests.post(HF_API_URL, json=payload, timeout=60)
             
             if response.status_code == 200:
-                audio_name = f"voice_{uid}.wav"
-                with open(audio_name, "wb") as f:
-                    f.write(response.content)
-                bot.send_voice(message.chat.id, open(audio_name, "rb"), caption=f"Voice: {selected_model}")
+            from io import BytesIO
+             bio = BytesIO(response.content)
+            bio.name = "voice.wav"
+
+            bot.send_voice(message.chat.id, bio)
                 os.remove(audio_name)
                 bot.delete_message(message.chat.id, sent_msg.message_id)
             else:
