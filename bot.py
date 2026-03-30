@@ -2424,7 +2424,7 @@ def handle_all(message):
             print("Sending to RVC:", payload)
             response = requests.post(HF_API_URL, json=payload, timeout=60)
             
-            if response.status_code == 200:
+        if response.status_code == 200:
             from io import BytesIO
              bio = BytesIO(response.content)
             bio.name = "voice.wav"
