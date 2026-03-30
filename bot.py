@@ -79,20 +79,6 @@ GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
 
-def ensure_model():
-    if not os.path.exists(LOCAL_PTH):
-        print("📥 Downloading Elvish Model (.pth file)... Please wait.")
-        try:
-            r = requests.get(PTH_URL, allow_redirects=True, timeout=30)
-            with open(LOCAL_PTH, 'wb') as f:
-                f.write(r.content)
-            print("✅ Elvish Model Downloaded successfully!")
-        except Exception as e:
-            print(f"❌ Download Error: {e}")
-
-# Ye function call hona chahiye taaki file download ho jaye
-ensure_model()
-
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
     BotCommand("bal", "Apna khaata aur level dekhein"),
