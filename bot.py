@@ -24,12 +24,24 @@ import requests
 
 HF_API_URL = "https://singhp08-rvc-models.hf.space/convert" # Teri Space ka API Link
 
-# Flask Server Setup (Render ke liye zaroori)
+# --- Flask Server Setup (Render ke liye sahi wala) ---
 app = Flask('')
+
 @app.route('/')
-def home(): return "your friend daimond batch bot is here!"
-def run(): app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
-def keep_alive(): threading.Thread(target=run).start()
+def home():
+    return "Bot is Running!"
+
+def run():
+    # Render hamesha 'PORT' environment variable deta hai
+    port = int(os.environ.get('PORT', 8080)) 
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = threading.Thread(target=run)
+    t.start()
+
+# Ise call karo
+keep_alive()
 
 # 🔐 SECURE KEYS (Ab sab Render ki tijori / Environment Variables se aayega)
 API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
@@ -37,15 +49,6 @@ GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 MONGO_URL = os.environ.get('MONGO_URL')
 # 🚀 HUGGING FACE PRIVATE API ENGINE LINK
 HF_API = "https://singhp08-daimond-batch.hf.space"
-
-def run_server():
-    # Render jo port dega uspar chalega, warna 10000 par
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
-
-def keep_alive():
-    server_thread = threading.Thread(target=run_server)
-    server_thread.start()
 
 # Admin & Group Info
 ADMIN_ID = 7574760011 
