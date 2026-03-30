@@ -17,14 +17,17 @@ import subprocess
 from flask import Flask
 import threading
 import urllib.parse
-import pymongo 
+import pymongo
 import os
+import requests
 from rvc_python.infer import RVCInference
+from gtts import gTTS
 
-# Models ka rasta (Jo aapne GitHub pe upload kiye hain)
-ELVISH_PTH = "models/elvish.pth"
-ELVISH_INDEX = "models/elvish.index"
-ADMIN_ID =  7574760011 # <--- Yahan apni asli Telegram ID dalo
+# --- CONFIGURATION ---
+ADMIN_ID = 7574760011  # Aapki ID set kar di hai
+PTH_URL = "https://github.com/pawan009-coder/Jagirdar--bot/releases/download/v1.0/elvish.pth"
+INDEX_PATH = "models/elvish.index"  
+LOCAL_PTH = "elvish.pth"
 
 # Flask Server Setup (Render ke liye zaroori)
 app = Flask('')
@@ -80,6 +83,20 @@ API_TOKEN = os.environ.get('TELEGRAM_TOKEN')
 GEMINI_API_KEY = os.environ.get('GEMINI_KEY')
 ADMIN_ID = 7574760011 
 GROUP_USERNAME = "@Daimondbatch" 
+
+def ensure_model():
+    if not os.path.exists(LOCAL_PTH):
+        print("📥 Downloading Elvish Model (.pth file)... Please wait.")
+        try:
+            r = requests.get(PTH_URL, allow_redirects=True, timeout=30)
+            with open(LOCAL_PTH, 'wb') as f:
+                f.write(r.content)
+            print("✅ Elvish Model Downloaded successfully!")
+        except Exception as e:
+            print(f"❌ Download Error: {e}")
+
+# Ye function call hona chahiye taaki file download ho jaye
+ensure_model()
 
 bot.set_my_commands([
     BotCommand("start", "Bot chalu karein"),
@@ -1256,48 +1273,48 @@ def handle_photo_command(message):
 
 @bot.message_handler(commands=['elvish'])
 def handle_elvish_voice(message):
-    # 1. Sirf Admin ke liye check
+    # 1. Admin Verification
     if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Ye command sirf Admin ke liye hai!")
+        bot.reply_to(message, "❌ Bhai, ye feature sirf Admin ke liye reserved hai!")
         return
 
-    # 2. Text nikalna (Reply se ya command ke aage se)
-    text_to_convert = ""
+    # 2. Extract Text (Command ke aage se ya Reply se)
+    input_text = ""
     if message.reply_to_message and message.reply_to_message.text:
-        text_to_convert = message.reply_to_message.text
+        input_text = message.reply_to_message.text
     else:
-        text_to_convert = message.text.replace("/elvish", "").strip()
+        input_text = message.text.replace("/elvish", "").strip()
 
-    if not text_to_convert:
-        bot.reply_to(message, "💬 Bhai, kuch likho ya kisi message pe reply karo!")
+    if not input_text:
+        bot.reply_to(message, "💬 Kya bulwana hai? `/elvish [text]` likho ya kisi message pe reply karo.")
         return
 
-    msg = bot.reply_to(message, "🎙️ Elvish ki awaaz mein convert kar raha hoon...")
+    status = bot.reply_to(message, "🎙️ Elvish ki awaaz nikaal raha hoon, thoda sabar rakho...")
 
     try:
-        # Step A: Text to Speech (Normal Voice)
-        from gtts import gTTS
-        tts = gTTS(text=text_to_convert, lang='hi')
-        tts.save("temp_normal.mp3")
+        # Step A: Pehle Normal TTS (Hindi)
+        tts = gTTS(text=input_text, lang='hi')
+        tts.save("temp_raw.mp3")
 
-        # Step B: RVC Voice Cloning (Trained Model)
+        # Step B: RVC Voice Cloning (Using the .pth and .index files)
         rvc = RVCInference(device="cpu")
-        rvc.load_model(ELVISH_PTH)
+        rvc.load_model(LOCAL_PTH)
         rvc.infer(
-            input_path="temp_normal.mp3",
-            index_path=ELVISH_INDEX,
-            output_path="elvish_voice.mp3",
-            f0method="rmvpe"
+            input_path="temp_raw.mp3",
+            index_path=INDEX_PATH,
+            output_path="elvish_final.mp3"
         )
 
-        # Step C: Voice bhejna
-        with open("elvish_voice.mp3", "rb") as voice:
-            bot.send_voice(message.chat.id, voice, reply_to_message_id=message.message_id)
+        # Step C: Send the Cloned Voice
+        with open("elvish_final.mp3", "rb") as audio:
+            bot.send_voice(message.chat.id, audio, reply_to_message_id=message.message_id)
         
-        bot.delete_message(message.chat.id, msg.message_id)
+        # Safai (Temp files delete karna)
+        bot.delete_message(message.chat.id, status.message_id)
+        if os.path.exists("temp_raw.mp3"): os.remove("temp_raw.mp3")
 
     except Exception as e:
-        bot.edit_message_text(f"❌ Error: {str(e)}", message.chat.id, msg.message_id)
+        bot.edit_message_text(f"❌ Locha ho gaya: {str(e)}", message.chat.id, status.message_id)
            
 # 3. 👁️ NAYA OCR / READER (API se) - FIXED
 @bot.message_handler(commands=['read', 'ocr'])
