@@ -1,8 +1,6 @@
-# 1. Pehle normal libraries (PyPI se)
 hatchling
 setuptools
 wheel
-omegaconf==2.0.6
 pyTelegramBotAPI
 requests
 flask
@@ -14,8 +12,11 @@ feedparser
 apscheduler
 pytz
 gTTS
+# RVC ki dependencies manually
+omegaconf==2.0.6
+antlr4-python3-runtime==4.8
 
-# 2. Ab specific Torch libraries (CPU Index se)
+# Torch aur RVC last mein specific link ke sath
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
