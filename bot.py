@@ -2419,7 +2419,7 @@ def handle_all(message):
         
         try:
             payload = {
-            text = message.text.replace("/voice", "").strip(),
+            text = message.text.replace("/voice", "").strip()
             "model": "elvish"}
             print("Sending to RVC:", payload)
             response = requests.post(HF_API_URL, json=payload, timeout=60)
