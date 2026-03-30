@@ -1,5 +1,6 @@
+# 1. Sabse pehle Build Tools aur Bot ki main library
 hatchling
-setuptools
+setuptools==69.5.1
 wheel
 pyTelegramBotAPI
 requests
@@ -12,11 +13,12 @@ feedparser
 apscheduler
 pytz
 gTTS
-# RVC ki dependencies manually
+
+# 2. RVC ki specific dependencies (Manual)
 omegaconf==2.0.6
 antlr4-python3-runtime==4.8
 
-# Torch aur RVC last mein specific link ke sath
+# 3. Last mein Heavy AI Models (Extra Index ke saath)
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
