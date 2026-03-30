@@ -20,14 +20,9 @@ import urllib.parse
 import pymongo
 import os
 import requests
-from rvc_python.infer import RVCInference
-from gtts import gTTS
+# Baki purane imports rehne do (telebot, os, etc.)
 
-# --- CONFIGURATION ---
-ADMIN_ID = 7574760011  # Aapki ID set kar di hai
-PTH_URL = "https://github.com/pawan009-coder/Jagirdar--bot/releases/download/v1.0/elvish.pth"
-INDEX_PATH = "models/elvish.index"  
-LOCAL_PTH = "elvish.pth"
+HF_API_URL = "https://singhp08-rvc-models.hf.space/convert" # Teri Space ka API Link
 
 # Flask Server Setup (Render ke liye zaroori)
 app = Flask('')
@@ -1241,6 +1236,34 @@ def rob_cmd(message):
     msg = f"🥷 **MAHA-CHOR!** 🥷\n\n**{r['name']}** ne \n💸 loota **{t['name']}** ko\n\n💰 Chori: {loot_amt} Rs\n🤑 Mila (Tax kat ke): {net_loot - bonus} Rs{chakku_text}"
     bot.reply_to(message, msg)
 
+@bot.message_handler(commands=['voice'])
+def voice_menu(message):
+    markup = InlineKeyboardMarkup()
+    btn1 = InlineKeyboardButton("🔥 Elvish Yadav (Admin)", callback_data="v_elvish")
+    btn2 = InlineKeyboardButton("🎤 Ask (Dhruva)", callback_data="v_ask")
+    btn3 = InlineKeyboardButton("🎙️ Voice Ask", callback_data="v_vask")
+    markup.row(btn1)
+    markup.row(btn2, btn3)
+    bot.reply_to(message, "⚡ **Voice Engine Select Karo:**\nNiche buttons se awaaz chuno aur phir text bhejo:", reply_markup=markup, parse_mode="Markdown")
+
+# Global dictionary for user preference
+user_voice_pref = {}
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('v_'))
+def set_voice(call):
+    uid = call.from_user.id
+    voice_type = call.data.split('_')[1]
+    
+    # --- ADMIN CHECK FOR ELVISH ---
+    if voice_type == "elvish" and uid != ADMIN_ID:
+        bot.answer_callback_query(call.id, "❌ Bhai, Elvish voice sirf Admin ke liye hai!", show_alert=True)
+        return
+
+    user_voice_pref[uid] = voice_type
+    bot.answer_callback_query(call.id, f"{voice_type.upper()} select ho gayi!")
+    bot.edit_message_text(f"✅ Ab bas apna text likho, main use **{voice_type}** ki awaaz mein convert kar dunga!", 
+                          call.message.chat.id, call.message.message_id)
+                          
 @bot.message_handler(commands=['photo'])
 def handle_photo_command(message):
     reply = message.reply_to_message
@@ -1271,50 +1294,6 @@ def handle_photo_command(message):
     except Exception as e:
         bot.edit_message_text(f"⚠️ **Connection Error:** {str(e)}", message.chat.id, msg.message_id)
 
-@bot.message_handler(commands=['elvish'])
-def handle_elvish_voice(message):
-    # 1. Admin Verification
-    if message.from_user.id != ADMIN_ID:
-        bot.reply_to(message, "❌ Bhai, ye feature sirf Admin ke liye reserved hai!")
-        return
-
-    # 2. Extract Text (Command ke aage se ya Reply se)
-    input_text = ""
-    if message.reply_to_message and message.reply_to_message.text:
-        input_text = message.reply_to_message.text
-    else:
-        input_text = message.text.replace("/elvish", "").strip()
-
-    if not input_text:
-        bot.reply_to(message, "💬 Kya bulwana hai? `/elvish [text]` likho ya kisi message pe reply karo.")
-        return
-
-    status = bot.reply_to(message, "🎙️ Elvish ki awaaz nikaal raha hoon, thoda sabar rakho...")
-
-    try:
-        # Step A: Pehle Normal TTS (Hindi)
-        tts = gTTS(text=input_text, lang='hi')
-        tts.save("temp_raw.mp3")
-
-        # Step B: RVC Voice Cloning (Using the .pth and .index files)
-        rvc = RVCInference(device="cpu")
-        rvc.load_model(LOCAL_PTH)
-        rvc.infer(
-            input_path="temp_raw.mp3",
-            index_path=INDEX_PATH,
-            output_path="elvish_final.mp3"
-        )
-
-        # Step C: Send the Cloned Voice
-        with open("elvish_final.mp3", "rb") as audio:
-            bot.send_voice(message.chat.id, audio, reply_to_message_id=message.message_id)
-        
-        # Safai (Temp files delete karna)
-        bot.delete_message(message.chat.id, status.message_id)
-        if os.path.exists("temp_raw.mp3"): os.remove("temp_raw.mp3")
-
-    except Exception as e:
-        bot.edit_message_text(f"❌ Locha ho gaya: {str(e)}", message.chat.id, status.message_id)
            
 # 3. 👁️ NAYA OCR / READER (API se) - FIXED
 @bot.message_handler(commands=['read', 'ocr'])
@@ -2402,6 +2381,31 @@ def handle_all(message):
     uid = message.from_user.id
     action = None
     txt = message.text.lower() if message.text else ""
+        # --- NAYA HF VOICE LOGIC ---
+    if uid in user_voice_pref:
+        selected_model = user_voice_pref[uid]
+        sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
+        
+        try:
+            payload = {"text": message.text, "model": selected_model}
+            response = requests.post(HF_API_URL, json=payload, timeout=60)
+            
+            if response.status_code == 200:
+                audio_name = f"voice_{uid}.wav"
+                with open(audio_name, "wb") as f:
+                    f.write(response.content)
+                bot.send_voice(message.chat.id, open(audio_name, "rb"), caption=f"Voice: {selected_model}")
+                os.remove(audio_name)
+                bot.delete_message(message.chat.id, sent_msg.message_id)
+            else:
+                bot.edit_message_text("❌ HF Error: Model missing or server down.", message.chat.id, sent_msg.message_id)
+        except Exception as e:
+            bot.edit_message_text(f"❌ Connection Error: {e}", message.chat.id, sent_msg.message_id)
+        
+        del user_voice_pref[uid]
+        return # Voice process ho gayi toh aage ka logic nahi chalega
+    
+    # --- BAAKI KA PURANA LOGIC YAHAN SE REHNE DO (Dhruva/News etc.) ---
     is_prv = message.chat.type == 'private'
     
     # --- 2. Admin Check ---
