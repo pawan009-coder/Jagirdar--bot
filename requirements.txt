@@ -1,3 +1,5 @@
+setuptools
+wheel
 pyTelegramBotAPI
 requests
 flask
@@ -8,6 +10,8 @@ yt-dlp
 feedparser
 apscheduler
 pytz
-rvc-python
-torch --index-url https://download.pytorch.org/whl/cpu
 gTTS
+rvc-python
+--index-url https://download.pytorch.org/whl/cpu
+torch
+torchaudio
