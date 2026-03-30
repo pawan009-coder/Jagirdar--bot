@@ -13,6 +13,7 @@ feedparser
 apscheduler
 pytz
 gTTS
+tensorboardX
 
 # 2. RVC ki specific dependencies (Manual)
 omegaconf==2.0.6
