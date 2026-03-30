@@ -1,6 +1,5 @@
-setuptools
+setuptools==70.0.0
 wheel
-pyTelegramBotAPI
 requests
 flask
 pymongo
@@ -15,3 +14,4 @@ rvc-python
 --index-url https://download.pytorch.org/whl/cpu
 torch
 torchaudio
+pyTelegramBotAPI
