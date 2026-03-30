@@ -20,9 +20,13 @@ import urllib.parse
 import pymongo
 import os
 import requests
+import requests
+from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 
 HF_API_URL = "https://singhp08-rvc-models.hf.space/convert" # Teri Space ka API Link
+HF_TTS_API = "https://singhp08-rvc-models.hf.space/tts"
+RVC_API = "https://rvc-api.onrender.com/convert"
 
 # --- Flask Server Setup (Render ke liye sahi wala) ---
 app = Flask('')
@@ -240,6 +244,35 @@ Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saa
         bot.delete_message(message.chat.id, wait_msg.message_id)
     except Exception as e:
         bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
+def generate_voice(text):
+    try:
+        print("📥 Text:", text)
+
+        # 1️⃣ TTS (HF)
+        tts_res = requests.post(HF_TTS_API, json={"text": text}, timeout=60)
+
+        if tts_res.status_code != 200:
+            print("❌ TTS Error:", tts_res.text)
+            return None
+
+        # 2️⃣ RVC
+        files = {"audio": ("tts.mp3", tts_res.content)}
+        data = {"model": "elvish"}
+
+        rvc_res = requests.post(RVC_API, files=files, data=data, timeout=120)
+
+        print("RVC Status:", rvc_res.status_code)
+
+        if rvc_res.status_code == 200:
+            return rvc_res.content
+        else:
+            print("❌ RVC Error:", rvc_res.text)
+            return None
+
+    except Exception as e:
+        print("❌ Exception:", e)
+        return None
 
 # ==========================================
 # 👑 SUPREME ADMIN CONTROL PANEL (DM ONLY)
@@ -1226,15 +1259,24 @@ def rob_cmd(message):
     bot.reply_to(message, msg)
 
 @bot.message_handler(commands=['voice'])
-def voice_menu(message):
-    markup = InlineKeyboardMarkup()
-    btn1 = InlineKeyboardButton("🔥 Elvish Yadav (Admin)", callback_data="v_elvish")
-    btn2 = InlineKeyboardButton("🎤 Ask (Dhruva)", callback_data="v_ask")
-    btn3 = InlineKeyboardButton("🎙️ Voice Ask", callback_data="v_vask")
-    markup.row(btn1)
-    markup.row(btn2, btn3)
-    bot.reply_to(message, "⚡ **Voice Engine Select Karo:**\nNiche buttons se awaaz chuno aur phir text bhejo:", reply_markup=markup, parse_mode="Markdown")
+def voice_cmd(message):
+    text = message.text.replace("/voice", "").strip()
 
+    if not text:
+        return bot.reply_to(message, "Text de bhai!")
+
+    msg = bot.reply_to(message, "🎤 Voice bana raha hu...")
+
+    audio = generate_voice(text)
+
+    if audio:
+        bio = BytesIO(audio)
+        bio.name = "voice.wav"
+
+        bot.send_voice(message.chat.id, bio)
+        bot.delete_message(message.chat.id, msg.message_id)
+    else:
+        bot.edit_message_text("❌ Voice nahi bani", message.chat.id, msg.message_id)
 # Global dictionary for user preference
 user_voice_pref = {}
 
