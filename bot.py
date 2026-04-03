@@ -2420,23 +2420,25 @@ def handle_all(message):
         
         try:
             payload = {
-            "text": message.text.replace("/voice", "").strip(),
-             "model": "elvish"}
+                "text": message.text.replace("/voice", "").strip(),
+                "model": "elvish"
+            }
             print("Sending to RVC:", payload)
             response = requests.post(HF_API_URL, json=payload, timeout=60)
             
-        if response.status_code == 200:
-            from io import BytesIO
-             bio = BytesIO(response.content)
-            bio.name = "voice.wav"
+            # Ye block 'try' ke andar hona chahiye (4 spaces aage)
+            if response.status_code == 200:
+                from io import BytesIO
+                bio = BytesIO(response.content)
+                bio.name = "voice.wav"
 
-            bot.send_voice(message.chat.id, bio)
-                os.remove(audio_name)
-                bot.delete_message(message.chat.id, sent_msg.message_id)
+                bot.send_voice(message.chat.id, bio)
+                # bot.delete_message(message.chat.id, sent_msg.message_id) # Agar sent_msg defined hai toh
             else:
-                bot.edit_message_text("❌ HF Error: Model missing or server down.", message.chat.id, sent_msg.message_id)
+                bot.reply_to(message, "❌ HF Error: Model missing or server down.")
+
         except Exception as e:
-            bot.edit_message_text(f"❌ Connection Error: {e}", message.chat.id, sent_msg.message_id)
+            bot.reply_to(message, f"❌ Connection Error: {e}")
         
         del user_voice_pref[uid]
         return # Voice process ho gayi toh aage ka logic nahi chalega
