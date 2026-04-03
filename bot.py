@@ -2412,7 +2412,8 @@ def handle_all(message):
     uid = message.from_user.id
     action = None
     txt = message.text.lower() if message.text else ""
-        # --- NAYA HF VOICE LOGIC ---
+
+    # --- NAYA HF VOICE LOGIC ---
     if uid in user_voice_pref:
         selected_model = user_voice_pref[uid]
         sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
