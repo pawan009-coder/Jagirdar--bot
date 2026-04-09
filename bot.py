@@ -147,6 +147,125 @@ sps_games = {}
 poll_voters = set()
 pending_says = {}
 pending_papers = {}
+# Isse bot.py ke upar define karein
+game_sessions = {}
+
+@bot.message_handler(commands=['guess'])
+def start_guess(message):
+    chat_id = message.chat.id
+    target = random.randint(1, 100)
+    game_sessions[chat_id] = {'target': target, 'active': True}
+    bot.reply_to(message, "🎮 **Multiplayer Guessing Start!**\nMaine 1 se 100 ke beech ek number socha hai. Jo pehle guess karega woh jitega!")
+
+@bot.message_handler(commands=['setrole'])
+def set_personality(message):
+    parts = message.text.split(' ', 1)
+    if len(parts) < 2:
+        bot.reply_to(message, "Usage: /setrole <friend|mentor|girlfriend|helper|...>")
+        return
+    role = parts[1].strip().lower()
+    if role not in ['friend', 'mentor', 'girlfriend', 'helper', 'teacher']:  # उदाहरण रूप में
+        bot.reply_to(message, "Invalid role. Choose friend, mentor, girlfriend, helper, teacher.")
+        return
+    # MongoDB में यूजर की पसंद सेव करें
+    db.memories.update_one(
+        {"user_id": message.from_user.id},
+        {"$set": {"personality": role}},
+        upsert=True
+    )
+    bot.reply_to(message, f"Persona set to *{role}*!", parse_mode='Markdown')
+
+@bot.message_handler(commands=['stealth'])
+def toggle_stealth(message):
+    user_id = message.from_user.id
+    current = db.memories.find_one({"user_id": user_id}, {"stealth": 1})
+    new_flag = not (current and current.get("stealth"))
+    db.memories.update_one({"user_id": user_id}, {"$set": {"stealth": new_flag}}, upsert=True)
+    status = "activated" if new_flag else "deactivated"
+    bot.reply_to(message, f"Stealth mode {status}!")
+
+@bot.message_handler(content_types=['photo'])
+def scan_image(message):
+    # फोटो डाउनलोड करें
+    file_id = message.photo[-1].file_id
+    file_info = bot.get_file(file_id)
+    image_data = bot.download_file(file_info.file_path)
+    image = Image.open(io.BytesIO(image_data))
+
+    # 1) चेहरा पहचानें
+    import numpy as np
+    img_array = np.array(image)
+    face_locs = face_recognition.face_locations(img_array)
+    if face_locs:
+        bot.reply_to(message, f"Detected {len(face_locs)} face(s) in the image.")
+    else:
+        bot.reply_to(message, "No faces detected.")
+
+    # 2) OCR (पाठ निकालें)
+    try:
+        text = pytesseract.image_to_string(image)
+        if text.strip():
+            bot.reply_to(message, f"OCR Text:\n```\n{text}\n```", parse_mode='Markdown')
+    except Exception:
+        pass
+
+
+import text2emotion as te
+
+@bot.message_handler(func=lambda m: True)
+def detect_emotion(message):
+    text = message.text
+    emotions = te.get_emotion(text)
+    main_emotion = max(emotions, key=emotions.get)  # सबसे उच्च स्कोर वाली भावना
+    score = emotions[main_emotion]
+    bot.reply_to(message, f"Detected emotion: *{main_emotion.capitalize()}* ({score:.2f})")
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id]['active'])
+def check_guess(message):
+    chat_id = message.chat.id
+    try:
+        guess = int(message.text)
+        target = game_sessions[chat_id]['target']
+        if guess == target:
+            game_sessions[chat_id]['active'] = False
+            # MongoDB Score Update Logic yahan aayega
+            bot.reply_to(message, f"🥳 **Winner!** {message.from_user.first_name} ne sahi guess kiya: {target}")
+        elif guess < target:
+            bot.reply_to(message, "Thoda bada number socho! 📈")
+        else:
+            bot.reply_to(message, "Thoda chhota number socho! 📉")
+    except: pass
+
+@bot.message_handler(commands=['type'])
+def type_race(message):
+    sentences = ["The quick brown fox jumps over the lazy dog", "Python is the best language", "Dhruva AI is super fast"]
+    target_text = random.choice(sentences)
+    msg = bot.send_message(message.chat.id, f"⌨️ **Typing Race!**\n\nNiche wala text copy karke jaldi bhejo:\n`{target_text}`", parse_mode="Markdown")
+    
+    # Store target in game sessions
+    game_sessions[message.chat.id] = {'text': target_text, 'active': True}
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'text' in game_sessions[m.chat.id])
+def check_type(message):
+    chat_id = message.chat.id
+    if message.text == game_sessions[chat_id]['text']:
+        game_sessions[chat_id].clear()
+        bot.reply_to(message, f"🏆 **Typing King:** {message.from_user.first_name}!")
+        
+@bot.message_handler(commands=['math'])
+def math_game(message):
+    a, b = random.randint(1, 50), random.randint(1, 50)
+    ans = a + b
+    game_sessions[message.chat.id] = {'ans': ans}
+    bot.reply_to(message, f"➕ **Math Blitz!**\nJaldi batao: `{a} + {b} = ?`")
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'ans' in game_sessions[m.chat.id])
+def check_math(message):
+    if message.text == str(game_sessions[message.chat.id]['ans']):
+        del game_sessions[message.chat.id]
+        bot.reply_to(message, f"⚡ **Super Fast!** {message.from_user.first_name} ne sabse pehle solve kiya.")        
+ 
+
 
 # 🎨 9 VIP INK COLORS
 INK_COLORS = {
@@ -870,6 +989,24 @@ def auto_news_broadcast():
     except Exception as e:
         print(f"News Anchor System Error: {e}")
 
+import subprocess
+
+@bot.message_handler(commands=['scanuser'])
+def scan_social_user(message):
+    username = message.text.split(' ', 1)[-1]
+    if not username:
+        bot.reply_to(message, "Usage: /scanuser <username>")
+        return
+    try:
+        # Sherlock को subprocess से कॉल करें
+        result = subprocess.check_output(["sherlock", username], stderr=subprocess.STDOUT).decode()
+        if result.strip():
+            bot.reply_to(message, f"Accounts found for *{username}*:\n```\n{result}\n```", parse_mode='Markdown')
+        else:
+            bot.reply_to(message, f"Koi social account nahi mila `{username}` ke liye.")
+    except Exception as e:
+        bot.reply_to(message, f"Error: `{e}`")
+
 @bot.message_handler(commands=['video'])
 def make_ai_video(message):
     if "video" in disabled_cmds and message.from_user.id != ADMIN_ID: return
@@ -1517,6 +1654,25 @@ def parse_paper_commands(raw_text):
                 if text_part: segments.append({"font": current_font, "text": text_part + " "})
             i += 1
     return segments
+
+from pymongo import MongoClient
+
+# MongoDB कनेक्शन (उदाहरण: MONGO_URI एंव MONGO_DB पर्यावरण से लीजिए)
+mongo_client = MongoClient(os.getenv("MONGO_URI"))
+db = mongo_client[os.getenv("MONGO_DB", "mybotdb")]
+
+def save_user_message(user_id, role, content):
+    """संदेश को डेटाबेस में सेव करें (role: 'user' या 'bot')"""
+    db.memories.update_one(
+        {"user_id": user_id},
+        {"$push": {"messages": {"role": role, "content": content}}},
+        upsert=True
+    )
+
+def get_user_history(user_id):
+    """उस यूजर की पहले की सारी मैसेज रिट्रीव करें"""
+    doc = db.memories.find_one({"user_id": user_id})
+    return doc.get("messages", []) if doc else []
 
 def generate_multi_font_paper(segments):
     img_width = 1240
