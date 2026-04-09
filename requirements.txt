@@ -1,32 +1,29 @@
-# 1. Sabse pehle Build Tools aur Bot ki main library
+# --- Basic & Web ---
 hatchling
 setuptools==69.5.1
 wheel
 pyTelegramBotAPI
 requests
 flask
+gunicorn
 pymongo
 pillow
+
+# --- Tools & Utilities ---
 deep-translator
 yt-dlp
 feedparser
 apscheduler
 pytz
 gTTS
-tensorboardX
 
-# 2. RVC ki specific dependencies (Manual)
+# --- RVC & AI Setup (Versions fixed for RAM) ---
 omegaconf==2.0.6
 antlr4-python3-runtime==4.8
+tensorboardX
 
-# 3. Last mein Heavy AI Models (Extra Index ke saath)
+# --- Heavy Libraries (CPU ONLY - Very Important) ---
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchaudio
-rvc-python
-sherlock-project
-pymongo
-text2emotion
-face-recognition
-pytesseract
-opencv-python
+torch==2.0.1+cpu
+torchaudio==2.0.2+cpu
+rvc-python==0.3.0
