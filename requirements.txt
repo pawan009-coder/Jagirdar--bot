@@ -24,3 +24,9 @@ antlr4-python3-runtime==4.8
 torch
 torchaudio
 rvc-python
+sherlock-project
+pymongo
+text2emotion
+face-recognition
+pytesseract
+opencv-python
