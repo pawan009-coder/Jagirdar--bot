@@ -26,4 +26,4 @@ tensorboardX
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.0.1+cpu
 torchaudio==2.0.2+cpu
-rvc-python==0.3.0
+rvc-python==0.1.5
