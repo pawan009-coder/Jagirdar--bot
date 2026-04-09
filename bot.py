@@ -287,25 +287,40 @@ def blocked_user_handler(message):
 # 2. 📋 List Command (Sabki Kundali - Multi-Message Support)
 @bot.message_handler(commands=['list'])
 def admin_list_users(message):
-    if message.from_user.id != ADMIN_ID or message.chat.type != 'private': return
+    # 1. Admin aur DM Check
+    if message.from_user.id != ADMIN_ID: 
+        return
+    if message.chat.type != 'private': 
+        return bot.reply_to(message, "🤫 Boss, yeh command sirf mere DM (Private Chat) mein aakar lagao!")
     
-    header = "📋 **DAIMOND BATCH USERS** 📋\n━━━━━━━━━━━━━━━━━━━\n"
+    header = "📋 *DAIMOND BATCH USERS* 📋\n━━━━━━━━━━━━━━━━━━━\n"
     text = header
     
     for i, (uid, data) in enumerate(users.items(), 1):
         status = "🚫 BLOCKED" if data.get('blocked', False) else "✅ Active"
-        line = f"{i}. {data['name']} (ID: `{uid}`) - {status}\n"
         
-        # Agar agla line jodne se message 4000 se bada ho raha hai, toh pehle itna bhej do
+        # 2. MARKDOWN FIX: User ke naam se '_' aur '*' hata rahe hain taaki bot crash na ho
+        raw_name = str(data.get('name', 'Unknown User'))
+        safe_name = raw_name.replace("_", "\\_").replace("*", "\\*").replace("`", "").replace("[", "").replace("]", "")
+        
+        line = f"{i}. {safe_name} (ID: `{uid}`) - {status}\n"
+        
+        # Telegram limit check (4000 chars)
         if len(text) + len(line) > 4000:
-            bot.send_message(message.chat.id, text, parse_mode="Markdown")
-            text = line # Naya message is line se shuru karo
+            try:
+                bot.send_message(message.chat.id, text, parse_mode="Markdown")
+            except Exception as e:
+                bot.send_message(message.chat.id, f"❌ Error (List 1): {e}")
+            text = line # Naya message yahan se shuru hoga
         else:
             text += line
             
-    # Jo aakhiri bacha hua text hai, wo bhej do
+    # Bacha hua aakhiri message bhejna
     if text and text != header:
-        bot.send_message(message.chat.id, text, parse_mode="Markdown")
+        try:
+            bot.send_message(message.chat.id, text, parse_mode="Markdown")
+        except Exception as e:
+            bot.send_message(message.chat.id, f"❌ Error (List 2): {e}\n(Shayad kisi naam mein abhi bhi kharab text hai)")
     elif text == header:
         bot.reply_to(message, "Boss, abhi tak database mein koi user nahi aaya hai!")
 
