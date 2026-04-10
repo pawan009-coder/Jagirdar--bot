@@ -4,8 +4,6 @@ import re
 import feedparser
 from apscheduler.schedulers.background import BackgroundScheduler
 import pytz
-import yt_dlp
-from PIL import Image, ImageDraw, ImageFont
 import io
 from deep_translator import GoogleTranslator
 import textwrap
@@ -13,7 +11,6 @@ import time
 import random
 import requests
 import os
-import subprocess
 from flask import Flask
 import threading
 import urllib.parse
@@ -193,7 +190,6 @@ def scan_image(message):
     image = Image.open(io.BytesIO(image_data))
 
     # 1) चेहरा पहचानें
-    import numpy as np
     img_array = np.array(image)
     face_locs = face_recognition.face_locations(img_array)
     if face_locs:
@@ -210,7 +206,6 @@ def scan_image(message):
         pass
 
 
-import text2emotion as te
 
 @bot.message_handler(func=lambda m: True)
 def detect_emotion(message):
@@ -858,75 +853,20 @@ import requests
 
 @bot.message_handler(commands=['dl', 'insta', 'yt'])
 def download_media(message):
-    # Lock Check
-    if "dl" in disabled_cmds and message.from_user.id != ADMIN_ID: 
-        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-        
-    parts = message.text.split(maxsplit=1)
-    if len(parts) < 2:
-        return bot.reply_to(message, "📥 **Aise likho:**\n`/dl [Video ka Link]`\n*(Instagram, YouTube, Twitter kuch bhi chalega sa!)*", parse_mode="Markdown")
-        
-    link = parts[1].strip()
-    wait_msg = bot.reply_to(message, "⏳ *Khufiya tarike se video chura raha hu, ruk sa...*", parse_mode="Markdown")
-    bot.send_chat_action(message.chat.id, 'record_video')
-    
-    file_name = f"video_{message.message_id}.mp4"
-    
-    # ⚙️ Nayi aur Khatarnak yt-dlp Settings (Bina FFmpeg ke chalne wali)
-    ydl_opts = {
-        'outtmpl': file_name,
-        # 'b[ext=mp4]' matlab pehle se judi hui video+audio laao, FFmpeg nahi chahiye
-        'format': 'b[ext=mp4]/best', 
-        'noplaylist': True,
-        'quiet': True,
-        'max_filesize': 50000000, # Telegram limit 50MB
-        'http_headers': {
-            # Instagram/YouTube ko lagega ye asli iPhone se khul raha hai, bot nahi hai!
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
-        }
-    }
-    
     try:
-        # 1. Background mein video download karna
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([link])
-            
-        # 2. Telegram par wapas bhejna
-        with open(file_name, 'rb') as video_file:
-            bot.send_video(message.chat.id, video_file, caption="📥 **Daimond Batch Downloader**\n✅ *Ye lijiye sa aapka video!*")
-            
-        # 3. Kachra saaf karna
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-        if os.path.exists(file_name):
-            os.remove(file_name)
-        
-    except Exception as e:
-        error_msg = str(e)
-        print(f"DL Error: {error_msg}") # Render logs me dekhne ke liye
-        
-        if "max_filesize" in error_msg.lower() or "too large" in error_msg.lower():
-            bot.edit_message_text("❌ Video bahut bada hai sa! Telegram par max 50MB hi bhej sakte hain.", message.chat.id, wait_msg.message_id)
-        elif "private" in error_msg.lower():
-            bot.edit_message_text("❌ Video private hai, main account ke andar nahi ghus sakta sa!", message.chat.id, wait_msg.message_id)
+        link = message.text.split(' ', 1)[1]
+    except:
+        return bot.reply_to(message, "Link do: /dl https://...")
+    wait_msg = bot.reply_to(message, "⏳ Download ho raha hai...")
+    try:
+        response = requests.post(f"{HF_API}/download", json={"url": link}, timeout=180)
+        if response.status_code == 200:
+            bot.send_video(message.chat.id, response.content, caption="✅ Done!")
+            bot.delete_message(message.chat.id, wait_msg.message_id)
         else:
-            # Asli error ab Telegram pe dikhega taaki humein pata chale kya phata!
-            bot.edit_message_text(f"❌ Video download fail ho gaya sa!\n\n**Asli Error:** `{error_msg[:150]}`", message.chat.id, wait_msg.message_id, parse_mode="Markdown")
-            
-        if os.path.exists(file_name):
-            os.remove(file_name)
-        
+            bot.edit_message_text(f"❌ Download fail: {response.text}", message.chat.id, wait_msg.message_id)
     except Exception as e:
-        error_msg = str(e).lower()
-        if "max_filesize" in error_msg or "too large" in error_msg:
-            bot.edit_message_text("❌ Video bahut bada hai sa! Telegram par max 50MB hi bhej sakte hain (Shorts/Reels try karo).", message.chat.id, wait_msg.message_id)
-        elif "private" in error_msg or "unsupported" in error_msg:
-            bot.edit_message_text("❌ Video private hai ya link galat hai sa!", message.chat.id, wait_msg.message_id)
-        else:
-            bot.edit_message_text("❌ Video churane mein fail ho gaya sa! Wapas try karo.", message.chat.id, wait_msg.message_id)
-            
-        # Agar error ke baad file ban gayi ho toh delete kar do
-        if os.path.exists(file_name):
-            os.remove(file_name)
+        bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
             
 # ==========================================
 # 📰 THE AI NEWS ANCHOR (Subah 8 aur Raat 8)
@@ -1138,30 +1078,24 @@ def buy_shield(message):
     u['bal'] -= 500
     u['shield_until'] = time.time() + 86400 # 24 Hours
     bot.send_message(message.chat.id, "🛡️ **SHIELD ACTIVATED!**\n500 Rs cut gaye. Ab agle 24 ghante tak aapko koi nahi loot payega.")
+
 @bot.message_handler(commands=['imagine', 'ai'])
 def handle_imagine(message):
     try:
-        if len(message.text.split()) < 2:
-            return bot.reply_to(message, "❌ **Bhai, kuch text toh likho photo banane ke liye!**")
-
         prompt = message.text.split(' ', 1)[1]
-        msg = bot.reply_to(message, f"🌀 **Daimond Engine photo bana raha hai...**\n`{prompt}`")
-        
-        bot.send_chat_action(message.chat.id, 'upload_photo')
+    except:
+        return bot.reply_to(message, "❌ Prompt likho bhai! /imagine ek udta hua ghoda")
 
-        # 🚀 APNI Custom Engine को request भेज रहे हैं (Bina token ke)
-        payload = {'prompt': prompt}
-        # HF_API = "https://singhp08-daimond-batch.hf.space" होना चाहिए ऊपर
-        response = requests.post(f"{HF_API}/generate", json=payload, timeout=300)
-
+    msg = bot.reply_to(message, "🌀 Photo ban rahi hai...")
+    try:
+        response = requests.post(f"{HF_API}/imagine", json={"prompt": prompt}, timeout=120)
         if response.status_code == 200:
-            bot.send_photo(message.chat.id, response.content, caption=f"✨ `{prompt}`")
+            bot.send_photo(message.chat.id, response.content, caption=f"✨ {prompt}")
             bot.delete_message(message.chat.id, msg.message_id)
         else:
-            bot.edit_message_text(f"❌ **Engine Error: {response.status_code}**\nBhai, check karo HF Space active hai.", message.chat.id, msg.message_id)
-
+            bot.edit_message_text(f"❌ Error: {response.text}", message.chat.id, msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"⚠️ **Error:** {str(e)}", message.chat.id, msg.message_id)
+        bot.edit_message_text(f"❌ Connection Error: {e}", message.chat.id, msg.message_id)
 
 @bot.message_handler(commands=['give', 'donate'])
 def give_money(message):
@@ -1834,67 +1768,18 @@ def check_win(b):
 
 @bot.message_handler(commands=['hd', 'enhance'])
 def make_photo_hd(message):
-    # Admin Lock Check
-    if "hd" in disabled_cmds and message.from_user.id != ADMIN_ID: 
-        return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
-    
     if not message.reply_to_message or not message.reply_to_message.photo:
-        return bot.reply_to(message, "📸 **Aise likho:**\nKisi blur ya purani photo par reply karke `/hd` likho sa!", parse_mode="Markdown")
-        
-    wait_msg = bot.reply_to(message, "⏳ *Engine photo ko 4K HD bana raha hai, thoda time lagega ruk sa...*", parse_mode="Markdown")
-    bot.send_chat_action(message.chat.id, 'upload_photo')
-    
+        return bot.reply_to(message, "Kisi photo par reply karke /hd likho")
+    wait_msg = bot.reply_to(message, "⏳ 4K HD ban raha hai...")
     try:
-        # 1. Telegram se purani photo download karna
         file_info = bot.get_file(message.reply_to_message.photo[-1].file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-        
-        # 2. HF API par bhej kar Enhance (HD) karwana
-        res = requests.post(f"{HF_API}/enhance", files={"image": downloaded_file}, timeout=60)
-        
-        if res.status_code == 200:
-            # --- WATERMARK ENGINE (Gemini/Meta AI Style) ---
-            img = Image.open(io.BytesIO(res.content)).convert("RGBA")
-            make_canvas = Image.new('RGBA', img.size, (0, 0, 0, 0))
-            draw = ImageDraw.Draw(make_canvas)
-
-            # Font size photo ke hisaab se (thoda chota aur elegant)
-            font_size = max(20, int(img.height * 0.03)) 
-            try:
-                # Agar Arial font server par hai toh wo chalega, warna default
-                font = ImageFont.truetype("Arial.ttf", font_size)
-            except:
-                font = ImageFont.load_default()
-
-            text = "jagirdar pawan"
-
-            # Text ka size nikalna taaki corner mein fit kar sakein
-            bbox = draw.textbbox((0, 0), text, font=font)
-            tw = bbox[2] - bbox[0]
-            th = bbox[3] - bbox[1]
-
-            # Position: Bottom Right Corner (Edge se 40 pixels andar)
-            x = img.width - tw - 40
-            y = img.height - th - 40
-
-            # White color with transparency (Halka dikhne ke liye alpha 160 rakha hai)
-            draw.text((x, y), text, font=font, fill=(255, 255, 255, 160))
-
-            # Dono images ko merge karna aur wapas RGB mein convert karna
-            final_img = Image.alpha_composite(img, make_canvas).convert("RGB")
-
-            # --- FINAL SENDING ---
-            output = io.BytesIO()
-            final_img.save(output, format="JPEG", quality=100)
-            output.seek(0)
-            output.name = "HD_Photo.jpg"
-            
-            bot.send_photo(message.chat.id, output, caption="📸 **DAIMOND BATCH HD STUDIO**\n✨ *Photo ekdum 4K Makkhan ho gayi sa!*")
+        downloaded = bot.download_file(file_info.file_path)
+        response = requests.post(f"{HF_API}/enhance", files={"image": downloaded}, timeout=120)
+        if response.status_code == 200:
+            bot.send_photo(message.chat.id, response.content, caption="✅ HD Ban Gayi!")
             bot.delete_message(message.chat.id, wait_msg.message_id)
-            
         else:
-            bot.edit_message_text("❌ Engine ne nakhre kiye sa! Wapas try karo.", message.chat.id, wait_msg.message_id)
-            
+            bot.edit_message_text("❌ Enhance fail", message.chat.id, wait_msg.message_id)
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
         
