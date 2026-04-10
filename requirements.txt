@@ -1,22 +1,10 @@
-# --- Basic & Web ---
-hatchling
-setuptools==69.5.1
-wheel
 pyTelegramBotAPI
 requests
 flask
 gunicorn
 pymongo
-pillow
-
-# --- Tools & Utilities ---
-deep-translator
-yt-dlp
-feedparser
 apscheduler
 pytz
-gTTS
-
-# --- RVC & AI Setup (Versions fixed for RAM) ---
-omegaconf==2.0.6
-
+feedparser
+deep-translator
+Pillow
