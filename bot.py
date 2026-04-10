@@ -2570,7 +2570,7 @@ def handle_all(message):
         else:
             bot.reply_to(message, ai_text)
 
-# --- 6. Final Execution (Function ke BAHAAR) ---
+# ------------------- WEBHOOK MODE FOR RENDER (AUTO URL) -------------------
 if __name__ == "__main__":
     keep_alive()
     threading.Thread(target=background_monitor, daemon=True).start()
@@ -2578,6 +2578,28 @@ if __name__ == "__main__":
     scheduler = BackgroundScheduler(timezone=pytz.timezone("Asia/Kolkata"))
     scheduler.add_job(auto_news_broadcast, 'cron', hour='*/3', minute=0)
     scheduler.start()
-    
-    print("🚀 Bot is running...")
-    bot.infinity_polling()
+
+    # 🔥 Render ऑटोमैटिकली URL पकड़कर Webhook सेट करेगा
+    render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+    if render_host:
+        WEBHOOK_URL = f"https://{render_host}/{API_TOKEN}"
+        print(f"🔗 Webhook सेट हो रहा है: {WEBHOOK_URL}")
+        
+        bot.remove_webhook()
+        time.sleep(1)
+        bot.set_webhook(url=WEBHOOK_URL)
+        
+        @app.route(f'/{API_TOKEN}', methods=['POST'])
+        def telegram_webhook():
+            if request.headers.get('content-type') == 'application/json':
+                json_string = request.get_data().decode('utf-8')
+                update = telebot.types.Update.de_json(json_string)
+                bot.process_new_updates([update])
+                return 'OK', 200
+            else:
+                return 'Bad Request', 403
+    else:
+        print("❌ RENDER_EXTERNAL_HOSTNAME नहीं मिला!")
+
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
