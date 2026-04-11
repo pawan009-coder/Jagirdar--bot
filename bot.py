@@ -12,7 +12,7 @@ import time
 import random
 import requests
 import os
-from flask import Flask
+from flask import Flask, request
 import threading
 import urllib.parse
 import pymongo
