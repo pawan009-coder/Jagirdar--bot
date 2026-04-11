@@ -8,7 +8,3 @@ pytz
 feedparser
 deep-translator
 Pillow
-numpy
-face-recognition
-pytesseract
-text2emotion
