@@ -167,97 +167,94 @@ def supreme_help_cmd(message):
     if "help" in disabled_cmds and message.from_user.id != ADMIN_ID: 
         return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
         
-    wait_msg = bot.reply_to(message, "⏳ *Daimond Batch ka Maha-Granth (Help Menu) khol raha hu...*", parse_mode="Markdown")
+    wait_msg = bot.reply_to(message, "⏳ *Daimond Batch ka Maha-Granth khol raha hu...*", parse_mode="Markdown")
     bot.send_chat_action(message.chat.id, 'typing')
 
     # ==========================================
     # 📜 PART 1: ECONOMY, CRIME & CASINO
     # ==========================================
     help_text_1 = """
-👑 **DAIMOND BATCH - THE SUPREME GUIDE (PART 1)** 👑
-Dhyan se suno dosto! Ye koi aam bot nahi hai, ye ek poori virtual duniya hai jahan aap ameer ban sakte ho, mafia ban sakte ho, aur AI ke maje le sakte ho. Yahan har command ka ek deep secret hai. Niche saari details deeply samjhayi gayi hain:
+👑 **DAIMOND BATCH – THE SUPREME GUIDE (PART 1)** 👑
 
-🏦 **BANK AUR ECONOMY (Paisa Hi Paisa)** 💸
-🔹 `/bal` : Ye aapka personal bank khata hai. Isse aapko pata chalega ki aapka Global Rank kya hai, aapke paas kitna cash (Rs) hai, aapne kitne khoon (kills) kiye hain, aapke jhole (inventory) mein kya-kya samaan hai, aur aapki Shield active hai ya nahi.
-🔹 `/daily` : Har 24 ghante mein aao aur free ke 200 Rs claim karo. Agar aapne Chor Bazaar se "Don Taj" pehna hai, toh ye rakam double (400 Rs) ho jayegi!
-🔹 `/weekly` : Har 7 din mein ek baar bada inam! Isey lagane par seedha 2000 Rs milte hain. Don Taj walo ko 4000 Rs milte hain!
-🔹 `/give [amount]` : Apne dosto ko paise donate karne ka tarika. Kisi ke bhi message par reply karke likho `/give 500` aur aapke bank se paise uske bank me chale jayenge. Asli bhaichara!
-🔹 `/loan [amount]` : Agar dost ko udhar dena hai toh uske message par reply karke `/loan 1000` likho. Us bande ke paas ek button aayega accept karne ka. Dhyan rahe, 24 ghante mein udhar wapas nahi kiya toh bot automatically uske account se paise aur 500 Rs fine kaat kar aapko de dega! Max limit 4000 Rs hai.
-🔹 `/return` : Apne sir se karza utarne ke liye ye command lagao. Jiska udhar liya hai, usko apne aap paise chale jayenge.
-🔹 `/shield` : 500 Rs dekar 24 ghante ke liye "Kavach" khareedo. Iske baad koi bhi aapko loot (rob) ya maar (kill) nahi payega.
+🏦 **💰 BANK AUR ECONOMY 💰**
+• `/bal` – 🏧 Apna bank balance, rank, kills, inventory aur shield status dekho.
+• `/daily` – 🎁 Har 24h free 200 Rs (Don Taj pehno to 400 Rs).
+• `/weekly` – 🗓️ Har 7 din 2000 Rs (Don Taj = 4000 Rs).
+• `/give [amount]` – 🤝 Reply karke paise donate karo.
+• `/loan [amount]` – 💳 Dost ko udhar do, 24h mein na laute to auto fine + recovery.
+• `/return` – ✅ Udhar chukta karo.
+• `/shield` – 🛡️ 500 Rs dekar 24h protection lo.
 
-🔪 **UNDERWORLD AUR MAFIA (Crime City)** 🩸
-🔹 `/shop` (ya `/bazaar`) : Ye sabse khatarnak jagah hai! Yahan se aap apne paise se hathiyar aur security khareed sakte ho:
-   - 🔪 *Chakku (1500 Rs)*: Chori karne par 200 Rs ka extra bonus.
-   - 🔫 *Desi Katta (8000 Rs)*: Khoon karne ka inam 500 se badhkar 1500 Rs.
-   - 🦺 *Bulletproof Jacket (15000 Rs)*: Ek baar goli lagne se bachayegi.
-   - 🐕 *Khufiya Kutta (30000 Rs)*: Koi rob karega toh 30% chance hai kutta usey kaat lega aur chori fail ho jayegi!
-   - 💣 *AK-47 (100000 Rs)*: Har khoon par seedha 5000 Rs ka heavy inam!
-   - 👑 *Don Taj (500000 Rs)*: Daily aur Weekly inam hamesha ke liye Double!
-🔹 `/rob [amount]` : Kisi ka paisa churana ho toh uske message par reply karke `/rob 1000` likho. Par yaad rakhna, agar uske paas kutta hua ya shield hui, toh aapka plan fail ho sakta hai. Aur chori ka 5% tax bot kaat leta hai!
-🔹 `/kill` : Dushmani nikalne ka best tarika. Reply karke `/kill` likho. Target "Dead" ho jayega. Murda insaan koi game nahi khel sakta. Kill ka inam aapke hathiyar par depend karta hai.
-🔹 `/revive` : Agar aapka dost mara gaya hai, toh aap uske message par reply karke 700 Rs dekar usko wapas zinda kar sakte ho (Sanjeevani Booti).
-🔹 `/toprank` : Pure group mein sabse ameer Top 10 logo ki list dekhne ke liye.
-🔹 `/topkills` : Group ke sabse khatarnak Top 10 Serial Killers ki list!
+🔪 **🩸 UNDERWORLD AUR MAFIA 🩸**
+• `/shop` ya `/bazaar` – 🛒 Hathiyar khareedo:
+  🔪 Chakku (1500) – Rob bonus +200 Rs
+  🔫 Desi Katta (8000) – Kill reward 500→1500 Rs
+  🦺 Bulletproof Jacket (15000) – 1 baar maut se bachao
+  🐕 Khufiya Kutta (30000) – 30% chance rob fail + chor ko kaat
+  💣 AK-47 (100000) – Kill reward 5000 Rs
+  👑 Don Taj (500000) – Daily/Weekly inam DOUBLE
+• `/rob [amount]` – 🥷 Reply karke kisi ko looto (5% tax).
+• `/kill` – ☠️ Dushman ko khatam karo (reward weapon par depend).
+• `/revive` – 💖 700 Rs dekar kisi dead user ko zinda karo.
+• `/toprank` – 🏆 Top 10 ameer log dekho.
+• `/topkills` – 💀 Top 10 serial killers ki list.
 
-🎰 **CASINO AUR GAMES (Kismat Ka Khel)** 🎲
-🔹 `/dice [amount]` : Apna paisa lagao aur Ludo ka dice feko. Agar dice par number '6' aata hai, toh aapka lagaya hua paisa seedha 3 Guna (3x) ho jayega! Warna haar jaoge.
-🔹 `/spin [amount]` : Casino ki slot machine. Agar teen '777' (Jackpot) match ho gaye, toh paisa 10 GUNA! Agar koi normal teeno image match hui toh 3 GUNA paisa!
-🔹 `/dart [amount]` : Teerandaazi! Agar teer center ke bilkul kareeb (Score 4, 5, ya 6) laga, toh paisa Double (2x).
-🔹 `/xo [amount]` : Apne dosto ke sath Tic-Tac-Toe khelo aur unka paisa jeeto.
-🔹 `/sps [amount]` : Stone, Paper, Scissors! Asli multiplayer game jisme 2 log bet lagate hain aur jo jeet ta hai wo poore paise le jata hai!
+🎰 **🎲 CASINO AUR GAMES 🎲**
+• `/dice [amount]` – 🎲 Ludo dice: 6 aaya to 3x paisa, warna loss.
+• `/spin [amount]` – 🎰 Slot machine: 777 = 10x, teen match = 3x.
+• `/dart [amount]` – 🎯 Dart: score 4/5/6 to 2x paisa.
+• `/xo [amount]` – ❌⭕ Tic‑Tac‑Toe bet khelo.
+• `/sps [amount]` – 🪨📄✂️ Stone Paper Scissor multiplayer.
 """
 
     # ==========================================
-    # 🤖 PART 2: AI & GOD-LEVEL TOOLS
+    # 🤖 PART 2: AI & GOD‑LEVEL TOOLS
     # ==========================================
     help_text_2 = """
-🤖 **AI AUR GOD-LEVEL TOOLS (Future is Here)** 🚀
-Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saari commands free mein aapko premium features deti hain:
+🤖 **🚀 AI AUR GOD‑LEVEL TOOLS 🚀**
 
-🔹 `/ask [question]` : Humara apna 'Jarvis' AI. Ye duniya ke sabse fast LLaMA-3 model par chalta hai. Aap isse kuch bhi pucho (jaise `/ask Duniya ka sabse ameer aadmi kon hai?`), aur ye aapko type karke nahi, balki apni asli AI Awaaz (Voice Note) mein jawab bol kar sunayega!
-🔹 `/roast` : Kisi dost ke message par reply karke `/roast` likho. Bot usko ek desi underground rapper ki tarah bhayanak tareeqe se voice note mein diss karega. (Caution: Boss se panga liya toh bot ulta aapko hi dho dalega!)
-🔹 `/reel [topic]` (ya `/video`) : Apne channel ke liye automatic cinematic video banayein! Bas `/reel hard work` likho. Bot FLUX AI se ek HD cinematic photo banayega, aur uspe ek heavy Hindi motivational shayari khud likh kar aur voice mein record karke group mein bhej dega. Ek second mein poora studio ka kaam!
-🔹 `/photo` (Background Remover) : Kisi bhi photo par reply karke `/photo` likho. Bot server par apne AI se us photo ka pichla hissa (background) mita kar usko ek transparent HD PNG file bana kar bhej dega, jise aap kisi bhi editing me use kar sakte ho.
-🔹 `/imagine [prompt]` : Duniya ka sabse latest FLUX.1-schnell model. Aap likho `/imagine ek udta hua cyberpunk ghoda`, aur bot 15 second mein ekdum real aur HD photo bana kar aapke samne rakh dega.
-🔹 `/dl [link]` (ya `/insta`, `/yt`) : The Universal Downloader! Aap kisi bhi Instagram Reel, YouTube Short ya Twitter video ka link do. Bot usko background mein chup-chap download karke bina kisi watermark ke Telegram par upload kar dega.
-🔹 `/read` (ya `/ocr`) : Kitabo ka Hacker! Kisi lambe English notes ya kitab ke page ki photo kheench kar uspar `/read` reply karo. Bot photo ke andar likha hua poora text padh lega aur usko Hindi mein translate karke aapko bhej dega.
-🔹 `/sketch` : Apni kisi photo par reply karke `/sketch` lagao. Bot OpenCV library ka use karke aapki photo ko ek realistic hand-drawn pencil sketch mein badal dega.
-🔹 `/speak [text]` (ya `/bolo`) : Bot ki zubaan! Aap jo bhi text likhoge, bot usko ekdam saaf aur Madhur awaaz mein bol kar Voice note bhejega.
-🔹 `/paper [font_number] [text]` : Apna text ek realistic notebook ke kagaz par likhwayein! Humare paas 30 VIP cursive fonts hain. Jaise `/paper 1 Hello jodhpur`. Bot aapse ink ka color poochega aur ekdum asli handwriting wali image dega!
-🔹 `/dance` : Group mein mahol banane ke liye Balle-Balle wala party GIF
-
-*Agar bot pasand aaye, toh apne sabhi Telegram groups mein isko add karo aur Daimond Batch ka jalwa dikhao!*
-help_text_3 = """
-🎮 **NEW GAMES & CUSTOMIZATION** 🎮
-
-🔹 `/guess` – Group में 1-100 के बीच नंबर guess करो। सबसे पहले सही बताने वाले को 500 Rs + 100 XP!
-🔹 `/type` – Typing race खेलो। दिए गए sentence को सबसे तेज़ टाइप करो और 300 Rs जीतो।
-🔹 `/math` – तेज़ दिमाग़ वालों के लिए। जोड़ के सवाल का जवाब दो और 200 Rs पाओ।
-🔹 `/setrole <role>` – अपने हिसाब से बॉट का personality सेट करो (जैसे `philosopher`, `girlfriend`, `mentor`)।
-🔹 `/setroleoff` – Custom personality बंद करके default mode पर लौट आओ।
-🔹 `/stealth` – Stealth mode ON/OFF करो ताकि कोई तुम्हारी activity ट्रैक न कर सके।
-🔹 `/scanuser <username>` – किसी भी username को 300+ social networks पर ढूँढो (Sherlock के ज़रिए)।
-🔹 `/nuke` – (Admin only) पूरे डेटाबेस को reset करके सबको 1000 Rs पर ले आओ।
-🔹 `/setdance` – (Admin only) अपनी पसंद का GIF डालकर `/dance` कमांड का डांस बदलो।
-
-💡 *इन सबके अलावा `/shop` से नए हथियार खरीदकर अपनी ताक़त बढ़ाओ!*
+• `/ask [question]` – 🗣️ Jarvis AI se voice mein jawab pao.
+• `/roast` – 🔥 Reply karke kisi ko AI rap se diss karo.
+• `/reel [topic]` ya `/video` – 🎬 AI cinematic reel (FLUX image + Hindi voice).
+• `/photo` – 📸 Reply karke background remove karo (transparent PNG).
+• `/imagine [prompt]` – 🎨 FLUX.1 AI se HD image banwao.
+• `/dl [link]` ya `/insta` `/yt` – 📥 Instagram/YouTube video download.
+• `/read` ya `/ocr` – 👁️ Photo se text padhkar Hindi mein translate.
+• `/sketch` – ✏️ Photo ko pencil sketch mein badlo.
+• `/speak [text]` ya `/bolo` – 🎙️ Bot ki aawaz mein sunao.
+• `/paper [font] [text]` – 📜 Notebook par custom font se likhwai.
+• `/dance` – 💃 Balle‑Balle party GIF.
 """
 
-try:
-    # Message 1 bhejna
-    bot.send_message(message.chat.id, help_text_1, parse_mode="Markdown")
-    # 1 second rukna taaki Telegram spam detect na kare
-    time.sleep(1)
-    # Message 2 bhejna
-    bot.send_message(message.chat.id, help_text_2, parse_mode="Markdown")
-    time.sleep(1)
-    # Message 3 bhejna
-    bot.send_message(message.chat.id, help_text_3, parse_mode="Markdown")
-    
-    bot.delete_message(message.chat.id, wait_msg.message_id)
-except Exception as e:
-    bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+    # ==========================================
+    # 🎮 PART 3: NEW GAMES & CUSTOMIZATION
+    # ==========================================
+    help_text_3 = """
+🎮 **🕹️ NEW GAMES & CUSTOMIZATION 🕹️**
+
+• `/guess` – 🔢 1‑100 number guess, winner gets 500 Rs + 100 XP.
+• `/type` – ⌨️ Typing race: sentence type karo, 300 Rs prize.
+• `/math` – ➕ Math quiz: addition solve karo, 200 Rs inam.
+• `/setrole <role>` – 🎭 Bot ka personality set karo (philosopher, girlfriend, etc).
+• `/setroleoff` – 🛑 Custom personality band karo.
+• `/stealth` – 🥷 Stealth mode ON/OFF – koi track nahi karega.
+• `/scanuser <username>` – 🔍 300+ social networks par username dhundho.
+• `/nuke` – 💣 (Admin only) Database reset – sabko 1000 Rs.
+• `/setdance` – 🕺 (Admin only) `/dance` ka GIF badlo.
+
+💡 *Aur bhi hai: `/shop` se hathiyar khareedo, `/daily` se kamao!*
+"""
+
+    try:
+        bot.send_message(message.chat.id, help_text_1, parse_mode="Markdown")
+        time.sleep(1)
+        bot.send_message(message.chat.id, help_text_2, parse_mode="Markdown")
+        time.sleep(1)
+        bot.send_message(message.chat.id, help_text_3, parse_mode="Markdown")
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+
 
 def generate_voice(text):
     try:
@@ -287,6 +284,7 @@ def generate_voice(text):
     except Exception as e:
         print("❌ Exception:", e)
         return None
+
 # ==========================================
 # 👑 SUPREME ADMIN CONTROL PANEL (DM ONLY)
 # ==========================================
