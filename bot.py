@@ -19,6 +19,15 @@ import pymongo
 import os
 import requests
 import requests
+# ये imports अपनी bot.py में सबसे ऊपर जोड़ दो
+import random
+import time
+import io
+import numpy as np
+import face_recognition
+import pytesseract
+import text2emotion as te
+from PIL import Image
 from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 
@@ -861,6 +870,194 @@ def make_ai_video(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
+@bot.message_handler(commands=['guess'])
+def start_guess(message):
+    chat_id = message.chat.id
+    user = message.from_user
+
+    # Check if game already running
+    if game_sessions.get(chat_id, {}).get('active'):
+        return bot.reply_to(message, "⚠️ Ek game pehle se chal raha hai! Pehle guess karo ya ruko.")
+
+    target = random.randint(1, 100)
+    game_sessions[chat_id] = {
+        'target': target,
+        'active': True,
+        'started_by': user.id,
+        'started_at': time.time(),
+        'attempts': {}
+    }
+
+    # Welcome message with instructions
+    welcome_text = (
+        f"🎮 **GUESS THE NUMBER – LEGEND EDITION** 🎮\n\n"
+        f"🔥 **{user.first_name}** ne game start kiya!\n"
+        f"🔢 Maine 1–100 ke beech ek number socha hai.\n"
+        f"👥 Group mein koi bhi guess kar sakta hai.\n"
+        f"⏳ Jaldbaazi mat karo – sabse pehle sahi guess karne wala jeetega!\n\n"
+        f"🎁 **Inam:** 500 Rs + 100 XP (jeetne wale ko)\n"
+        f"⌨️ Bas number type karo chat mein..."
+    )
+    bot.reply_to(message, welcome_text, parse_mode='Markdown')
+
+@bot.message_handler(commands=['stealth'])
+def toggle_stealth(message):
+    user_id = message.from_user.id
+
+    try:
+        current = db.memories.find_one({"user_id": user_id}, {"stealth": 1})
+        new_flag = not (current and current.get("stealth", False))
+
+        db.memories.update_one(
+            {"user_id": user_id},
+            {"$set": {"stealth": new_flag}},
+            upsert=True
+        )
+
+        status_emoji = "🟢 ON" if new_flag else "🔴 OFF"
+        status_text = "**ACTIVATED** – अब आपको कोई ट्रैक नहीं कर सकता!" if new_flag else "**DEACTIVATED** – आप अब दिखाई देंगे।"
+        bot.reply_to(message, f"🥷 **Stealth Mode** {status_emoji}\n{status_text}", parse_mode='Markdown')
+
+    except Exception as e:
+        print(f"Stealth DB Error: {e}")
+        bot.reply_to(message, "❌ Unable to toggle stealth mode right now.")
+
+@bot.message_handler(content_types=['photo'])
+def scan_image(message):
+    user = message.from_user
+    file_id = message.photo[-1].file_id
+
+    # Acknowledge receipt
+    processing_msg = bot.reply_to(message, "🔍 **Scanning image...**")
+
+    try:
+        file_info = bot.get_file(file_id)
+        downloaded = bot.download_file(file_info.file_path)
+        image = Image.open(io.BytesIO(downloaded))
+
+        result_lines = []
+
+        # ---------- Face Detection ----------
+        try:
+            import face_recognition
+            import numpy as np
+            img_array = np.array(image)
+            face_locations = face_recognition.face_locations(img_array)
+            face_count = len(face_locations)
+            if face_count > 0:
+                result_lines.append(f"👤 **Faces Detected:** {face_count}")
+            else:
+                result_lines.append("👤 **Faces:** None")
+        except Exception as e:
+            result_lines.append(f"⚠️ Face detection skipped: {e}")
+
+        # ---------- OCR (Text Extraction) ----------
+        try:
+            import pytesseract
+            text = pytesseract.image_to_string(image).strip()
+            if text:
+                # Truncate long text
+                display_text = (text[:300] + '...') if len(text) > 300 else text
+                result_lines.append(f"📝 **Extracted Text:**\n```{display_text}```")
+            else:
+                result_lines.append("📝 **Text:** None")
+        except Exception as e:
+            result_lines.append(f"⚠️ OCR skipped: {e}")
+
+        # Send final result
+        final_output = "\n\n".join(result_lines) if result_lines else "❌ Kuch detect nahi ho paya."
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id,
+            text=f"📊 **Scan Report** 📊\n\n{final_output}",
+            parse_mode='Markdown'
+        )
+
+    except Exception as e:
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id,
+            text=f"❌ Image scan failed: {e}"
+        )
+
+@bot.message_handler(func=lambda m: True)
+def detect_emotion(message):
+    text = message.text
+    if not text:
+        return
+
+    # Skip if it's a command
+    if text.startswith('/'):
+        return
+
+    try:
+        import text2emotion as te
+        emotions = te.get_emotion(text)
+        if not emotions:
+            return
+
+        main_emotion = max(emotions, key=emotions.get)
+        score = emotions[main_emotion]
+
+        # Only respond if confidence > 0.3
+        if score > 0.3:
+            emoji_map = {
+                'Happy': '😊', 'Angry': '😠', 'Surprise': '😲',
+                'Sad': '😢', 'Fear': '😨'
+            }
+            emoji = emoji_map.get(main_emotion, '🤔')
+            bot.reply_to(
+                message,
+                f"{emoji} *Emotion:* {main_emotion} ({score:.0%})",
+                parse_mode='Markdown'
+            )
+    except Exception as e:
+        # Fail silently – emotion detection is non-critical
+        pass
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False))
+def check_guess(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    try:
+        guess = int(message.text.strip())
+    except ValueError:
+        return  # Not a number, ignore silently
+
+    target = session['target']
+
+    # Prevent spam from same user
+    attempts = session.setdefault('attempts', {})
+    user_attempts = attempts.get(user.id, 0)
+    attempts[user.id] = user_attempts + 1
+
+    if guess == target:
+        session['active'] = False
+        reward = 500
+        # Give reward to user (assuming get_user exists)
+        u = get_user(user)
+        u['bal'] += reward
+        u['xp'] = u.get('xp', 0) + 100
+
+        winner_text = (
+            f"🏆 **WE HAVE A WINNER!** 🏆\n\n"
+            f"🥳 **{user.first_name}** ne sahi guess kiya: **{target}**\n"
+            f"💸 Inam: {reward} Rs + 100 XP\n"
+            f"📊 Total Attempts: {sum(attempts.values())}\n\n"
+            f"👏 Agla game `/guess` se shuru karo!"
+        )
+        bot.reply_to(message, winner_text, parse_mode='Markdown')
+        del game_sessions[chat_id]
+
+    elif guess < target:
+        hint = "📈 *Thoda bada number socho!*" if target - guess > 20 else "🔺 *Thoda aur upar...*"
+        bot.reply_to(message, hint, parse_mode='Markdown')
+    else:
+        hint = "📉 *Thoda chhota number socho!*" if guess - target > 20 else "🔻 *Thoda aur neeche...*"
+        bot.reply_to(message, hint, parse_mode='Markdown')
+
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
     if "bal" in disabled_cmds and message.from_user.id != ADMIN_ID: return bot.reply_to(message, "🚫 Ye command abhi Admin ne band kar rakhi hai!")
@@ -928,6 +1125,362 @@ def nuke_database(message):
         
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
+
+@bot.message_handler(commands=['math'])
+def math_game(message):
+    chat_id = message.chat.id
+
+    if game_sessions.get(chat_id, {}).get('active'):
+        return bot.reply_to(message, "⚠️ Pehle game khatam karo!")
+
+    a = random.randint(1, 50000)
+    b = random.randint(1, 500000)
+    ans = a + b
+
+    game_sessions[chat_id] = {
+        'ans': ans,
+        'active': True,
+        'started_by': message.from_user.id
+    }
+
+    bot.reply_to(
+        message,
+        f"➕ **MATH BLITZ!** ➕\n\n"
+        f"❓ Sawaal: `{a} + {b} = ?`\n"
+        f"⏱️ Jaldi se answer type karo!",
+        parse_mode='Markdown'
+    )
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'ans' in game_sessions[m.chat.id])
+def check_math(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    if not session.get('active'):
+        return
+
+    try:
+        user_ans = int(message.text.strip())
+    except ValueError:
+        return
+
+    if user_ans == session['ans']:
+        session['active'] = False
+        reward = 200
+        u = get_user(user)
+        u['bal'] += reward
+
+        bot.reply_to(
+            message,
+            f"🎓 **SAHI JAWAB!** 🎓\n"
+            f"🧠 {user.first_name} ne instantly solve kiya!\n"
+            f"💰 Inam: {reward} Rs",
+            parse_mode='Markdown'
+        )
+        del game_sessions[chat_id]
+
+@bot.message_handler(commands=['setrole'])
+def set_personality(message):
+    user_id = message.from_user.id
+    parts = message.text.split(' ', 1)
+
+    if len(parts) < 2:
+        return bot.reply_to(
+            message,
+            "🎭 **Custom Persona Set Karne Ka Tareeka:**\n"
+            "`/setrole <koi bhi role>`\n\n"
+            "💡 *Jaise: /setrole philosopher*",
+            parse_mode='Markdown'
+        )
+
+    role = parts[1].strip()
+    if len(role) > 50:
+        return bot.reply_to(message, "❌ Role 50 characters se chhota rakho!")
+
+    try:
+        db.memories.update_one(
+            {"user_id": user_id},
+            {"$set": {"personality": role, "role_active": True, "updated_at": time.time()}},
+            upsert=True
+        )
+        bot.reply_to(
+            message,
+            f"✅ **Custom Persona Set!**\n"
+            f"🎭 Role: *{role}*\n"
+            f"💬 Ab main aapse is role mein baat karunga!\n\n"
+            f"🛑 Role band karne ke liye: `/setroleoff`",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        print(f"SetRole DB Error: {e}")
+        bot.reply_to(message, "❌ Database error! Thodi der baad try karo.")
+
+TYPING_SENTENCES = [
+    "The quick brown fox jumps over the lazy dog",
+    "A journey of a thousand miles begins with a single step",
+    "All that glitters is not gold",
+    "Actions speak louder than words",
+    "Beauty is in the eye of the beholder",
+    "Better late than never",
+    "Birds of a feather flock together",
+    "Cleanliness is next to godliness",
+    "Don't count your chickens before they hatch",
+    "Easy come easy go",
+    "Every cloud has a silver lining",
+    "Fortune favors the bold",
+    "Good things come to those who wait",
+    "Honesty is the best policy",
+    "It never rains but it pours",
+    "Kill two birds with one stone",
+    "Laughter is the best medicine",
+    "Look before you leap",
+    "Make hay while the sun shines",
+    "Necessity is the mother of invention",
+    "No pain no gain",
+    "Old habits die hard",
+    "Practice makes perfect",
+    "Rome was not built in a day",
+    "Slow and steady wins the race",
+    "The early bird catches the worm",
+    "The grass is always greener on the other side",
+    "Time flies when you're having fun",
+    "Too many cooks spoil the broth",
+    "When in Rome do as the Romans do",
+    "Where there's a will there's a way",
+    "You can lead a horse to water but you can't make it drink",
+    "You reap what you sow",
+    "A picture is worth a thousand words",
+    "Absence makes the heart grow fonder",
+    "All roads lead to Rome",
+    "An apple a day keeps the doctor away",
+    "Beggars can't be choosers",
+    "Blood is thicker than water",
+    "Curiosity killed the cat",
+    "Don't bite the hand that feeds you",
+    "Don't put all your eggs in one basket",
+    "Every dog has its day",
+    "Familiarity breeds contempt",
+    "Give someone the cold shoulder",
+    "Haste makes waste",
+    "He who laughs last laughs longest",
+    "Home is where the heart is",
+    "If the shoe fits wear it",
+    "It takes two to tango",
+    "Keep your friends close and your enemies closer",
+    "Knowledge is power",
+    "Let sleeping dogs lie",
+    "Love is blind",
+    "Money doesn't grow on trees",
+    "Never say never",
+    "One man's trash is another man's treasure",
+    "Out of sight out of mind",
+    "People who live in glass houses shouldn't throw stones",
+    "Silence is golden",
+    "Strike while the iron is hot",
+    "The pen is mightier than the sword",
+    "There's no place like home",
+    "Two heads are better than one",
+    "Variety is the spice of life",
+    "What goes around comes around",
+    "You can't have your cake and eat it too",
+    "A watched pot never boils",
+    "All's fair in love and war",
+    "Barking dogs seldom bite",
+    "Better safe than sorry",
+    "Cross that bridge when you come to it",
+    "Don't cry over spilled milk",
+    "First come first served",
+    "Half a loaf is better than none",
+    "If it ain't broke don't fix it",
+    "Ignorance is bliss",
+    "In the land of the blind the one-eyed man is king",
+    "It's always darkest before the dawn",
+    "Lightning never strikes twice in the same place",
+    "Like father like son",
+    "Live and learn",
+    "Misery loves company",
+    "No news is good news",
+    "Once bitten twice shy",
+    "Opportunity seldom knocks twice",
+    "Patience is a virtue",
+    "Prevention is better than cure",
+    "Spare the rod and spoil the child",
+    "Still waters run deep",
+    "The apple never falls far from the tree",
+    "The best things in life are free",
+    "The more the merrier",
+    "The pot calling the kettle black",
+    "There's no smoke without fire",
+    "Time is money",
+    "Truth is stranger than fiction",
+    "Walls have ears",
+    "What's done is done",
+    "When it rains it pours",
+    "You can't judge a book by its cover",
+    "You scratch my back and I'll scratch yours",
+    "A leopard cannot change its spots",
+    "As you sow so shall you reap",
+    "Charity begins at home",
+    "Don't make a mountain out of a molehill",
+    "Empty vessels make the most noise",
+    "Even a broken clock is right twice a day",
+    "Faith will move mountains",
+    "God helps those who help themselves",
+    "Great minds think alike",
+    "Hope for the best prepare for the worst",
+    "If wishes were horses beggars would ride",
+    "It's no use crying over spilled milk",
+    "Jack of all trades master of none",
+    "Keep your chin up",
+    "Leave no stone unturned",
+    "Life is what you make it",
+    "Man proposes God disposes",
+    "Many hands make light work",
+    "Money is the root of all evil",
+    "Nothing ventured nothing gained",
+    "One good turn deserves another",
+    "Out of the frying pan into the fire",
+    "Pride comes before a fall",
+    "Seeing is believing",
+    "The blind leading the blind",
+    "The devil is in the details",
+    "The end justifies the means",
+    "The first step is always the hardest",
+    "The love of money is the root of all evil",
+    "The show must go on",
+    "The squeaky wheel gets the grease",
+    "Third time's a charm",
+    "Tomorrow is another day",
+    "Two wrongs don't make a right",
+    "United we stand divided we fall",
+    "We'll cross that bridge when we come to it",
+    "What doesn't kill you makes you stronger",
+    "When the going gets tough the tough get going",
+    "You are what you eat",
+    "You can't please everyone",
+    "A friend in need is a friend indeed",
+    "A penny saved is a penny earned",
+    "A rolling stone gathers no moss",
+    "All good things must come to an end",
+    "Be yourself everyone else is already taken",
+    "Carpe diem seize the day",
+    "Do unto others as you would have them do unto you",
+    "Don't put off until tomorrow what you can do today",
+    "Everything happens for a reason",
+    "Fall seven times stand up eight",
+    "Good fences make good neighbors",
+    "Happiness is not a destination it is a way of life",
+    "If you can't beat them join them",
+    "It is better to give than to receive",
+    "Keep your eyes on the prize",
+    "Live and let live",
+    "Music makes the world go round",
+    "Never go to bed angry",
+    "One day at a time",
+    "Practice what you preach",
+    "Sharing is caring",
+    "Take it with a grain of salt",
+    "The best is yet to come",
+    "The family that prays together stays together",
+    "The more things change the more they stay the same",
+    "The only constant in life is change",
+    "There is no time like the present",
+    "Today is the first day of the rest of your life",
+    "Waste not want not",
+    "We are all in the same boat",
+    "You miss a hundred percent of the shots you don't take",
+    "A calm sea does not make a skilled sailor",
+    "A rising tide lifts all boats",
+    "Actions have consequences",
+    "Aim for the moon if you miss you may hit a star",
+    "Always look on the bright side of life",
+    "Be kind whenever possible it is always possible",
+    "Comparison is the thief of joy",
+    "Dance like nobody's watching",
+    "Do what you can with what you have where you are",
+    "Don't let the bed bugs bite",
+    "Enjoy the little things in life",
+    "Every moment is a fresh beginning",
+    "Everything in moderation including moderation",
+    "Follow your heart but take your brain with you",
+    "Give credit where credit is due",
+    "Happiness is homemade",
+    "Have courage and be kind",
+    "If you change the way you look at things the things you look at change",
+    "In the middle of every difficulty lies opportunity",
+    "It's not about the destination it's about the journey",
+    "Kindness is a language which the deaf can hear and the blind can see",
+    "Let your light shine",
+    "Life is short make it sweet",
+    "Live life to the fullest",
+    "Love like you've never been hurt",
+    "Make each day your masterpiece",
+    "Never let the fear of striking out keep you from playing the game",
+    "No act of kindness no matter how small is ever wasted",
+    "One small positive thought in the morning can change your whole day",
+    "Peace begins with a smile",
+    "Positive anything is better than negative nothing",
+    "Smile it confuses people",
+    "Strive for progress not perfection",
+    "The best way to cheer yourself is to try to cheer someone else up",
+    "The greatest wealth is health",
+    "The secret of getting ahead is getting started",
+    "This too shall pass",
+    "Turn your wounds into wisdom",
+    "When you have a dream you've got to grab it and never let go",
+    "Wherever you go go with all your heart",
+    "Yesterday is history tomorrow is a mystery today is a gift"
+]
+
+@bot.message_handler(commands=['type'])
+def type_race(message):
+    chat_id = message.chat.id
+    if game_sessions.get(chat_id, {}).get('active'):
+        return bot.reply_to(message, "⚠️ Pehle se ek game chal raha hai!")
+
+    target_text = random.choice(TYPING_SENTENCES)
+    game_sessions[chat_id] = {
+        'text': target_text,
+        'active': True,
+        'started_by': message.from_user.id,
+        'started_at': time.time()
+    }
+
+    msg_text = (
+        f"⌨️ **TYPING RACE – READY?** ⌨️\n\n"
+        f"📋 Niche diya text **EXACTLY** type karo:\n"
+        f"`{target_text}`\n\n"
+        f"⚡ Sabse pehle type karne wala jeetega!\n"
+        f"🎁 Inam: 300 Rs"
+    )
+    bot.send_message(chat_id, msg_text, parse_mode='Markdown')
+
+@bot.message_handler(commands=['setroleoff'])
+def disable_personality(message):
+    user_id = message.from_user.id
+
+    try:
+        result = db.memories.update_one(
+            {"user_id": user_id},
+            {"$set": {"role_active": False, "updated_at": time.time()}}
+        )
+
+        if result.modified_count > 0:
+            bot.reply_to(
+                message,
+                "🛑 **Persona Disabled!**\n"
+                "🎭 Ab main default friendly mode mein baat karunga.\n"
+                "💡 Wapas set karne ke liye: `/setrole <role>`",
+                parse_mode='Markdown'
+            )
+        else:
+            bot.reply_to(message, "ℹ️ Aapne pehle se koi role set nahi kiya hai.")
+    except Exception as e:
+        print(f"SetRoleOff DB Error: {e}")
+        bot.reply_to(message, "❌ Derror! Thodi der baad try karo.")
+
+
 
 @bot.message_handler(commands=['shield'])
 def shield_req(message):
@@ -1310,6 +1863,30 @@ def read_image_text(message):
             bot.edit_message_text(f"❌ HF Engine Error: {res.text}", message.chat.id, wait_msg.message_id)
     except Exception as e:
         bot.edit_message_text(f"❌ Crash Error: {e}", message.chat.id, wait_msg.message_id)
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'text' in game_sessions[m.chat.id])
+def check_type(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    if not session.get('active'):
+        return
+
+    if message.text.strip() == session['text']:
+        session['active'] = False
+        reward = 300
+        u = get_user(user)
+        u['bal'] += reward
+
+        winner_text = (
+            f"🏆 **TYPING KING/QUEEN!** 🏆\n\n"
+            f"👑 **{user.first_name}** ne sabse pehle sahi type kiya!\n"
+            f"💰 Inam: {reward} Rs\n"
+            f"🚀 Aapki typing speed legendary hai!"
+        )
+        bot.reply_to(message, winner_text, parse_mode='Markdown')
+        del game_sessions[chat_id]
 
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
