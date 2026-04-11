@@ -2570,7 +2570,8 @@ def callbacks(call):
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
 
-# ================== 🎮 गेम हैंडलर्स (Guess, Math, Type) ==================
+# ================== 🎮 गेम चेक हैंडलर्स ==================
+
 @bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False) and 'target' in game_sessions[m.chat.id])
 def check_guess(message):
     chat_id = message.chat.id
@@ -2580,7 +2581,7 @@ def check_guess(message):
     try:
         guess = int(message.text.strip())
     except ValueError:
-        return
+        return  # अंक नहीं है तो चुपचाप निकल जाओ
 
     target = session['target']
     attempts = session.setdefault('attempts', {})
@@ -2665,41 +2666,12 @@ def check_type(message):
         bot.reply_to(message, winner_text, parse_mode='Markdown')
         del game_sessions[chat_id]
 
-
-# ================== 😊 इमोशन डिटेक्शन ==================
-@bot.message_handler(func=lambda m: True)
-def detect_emotion(message):
-    text = message.text
-    if not text or text.startswith('/'):
-        return
-
-    # अगर पहले कोई गेम या ध्रुव इसे हैंडल कर चुका है तो आगे न बढ़ें (ज़रूरी नहीं, लेकिन safe)
-    if message.message_id in already_processed:
-        return
-
-    try:
-        # अगर तुम्हारे पास HF में /emotion endpoint नहीं है तो local text2emotion इस्तेमाल कर सकते हो
-        import text2emotion as te
-        emotions = te.get_emotion(text)
-        if not emotions:
-            return
-        main_emotion = max(emotions, key=emotions.get)
-        score = emotions[main_emotion]
-        if score > 0.3:
-            emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
-            emoji = emoji_map.get(main_emotion, '🤔')
-            bot.reply_to(message, f"{emoji} *Emotion:* {main_emotion} ({score:.0%})", parse_mode='Markdown')
-    except:
-        pass
-
-
-# ================== 🧠 ध्रुव AI (वॉइस और टेक्स्ट) ==================
 DHRUVA_BRAIN = """
 तुम 'ध्रुव' (Dhruva) हो, एक बेहद एडवांस्ड और असली इंसान जैसा AI असिस्टेंट। तुम्हारा बॉस Daimond Batch का एडमिन है।
 तुम्हें यूजर की बात समझनी है और JSON फॉर्मेट में आउटपुट देना है।
 तुम्हें प्योर देवनागरी हिंदी (Devanagari Hindi) में जवाब देना है ताकि तुम्हारी आवाज़ एकदम असली इंसान जैसी लगे।
 
-तुम निम्नलिखित Actions ले सकते हो (सिर्फ वही करना जो बॉस कहे):
+Actions जो तुम ले सकते हो (सिर्फ वही करना जो बॉस कहे):
 1. "admin_steal_by_name"   : जब बॉस कहे "ध्रुव, इसके पैसे चुरा लो" या "इससे सब लूट लो" (किसी मैसेज पर रिप्लाई करके)।
 2. "admin_steal_from_top"  : जब बॉस कहे "टॉप के पैसे चुरा लो", "टॉप 3 को लूट लो", "रैंक 1 से पैसे निकाल लो" आदि।
 3. "admin_give_money"      : जब बॉस कहे "ध्रुव, इसको 5000 दे दो" या "इसके अकाउंट में 10 हज़ार डाल दे" (रिप्लाई के साथ रकम बताना)।
@@ -2715,19 +2687,7 @@ OUTPUT FORMAT (Strictly JSON):
 }
 """
 
-def is_dhruva(message):
-    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID:
-        return False
-    if message.content_type == 'voice':
-        return True
-    if message.content_type == 'text':
-        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
-        return any(word in message.text.lower() for word in trigger_words)
-    return False
-
-
-@bot.message_handler(func=is_dhruva, content_types=['text', 'voice'])
-def dhruva_assistant_monitor(message):
+def dhruva_process(message):
     uid = message.from_user.id
     user_input = ""
     is_voice = False
@@ -2737,10 +2697,8 @@ def dhruva_assistant_monitor(message):
             GROQ_KEY = os.environ.get('GROQ_KEY')
             if not GROQ_KEY:
                 return bot.reply_to(message, "❌ Voice recognition band hai.")
-
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             files = {"file": ("audio.ogg", downloaded_file, "audio/ogg")}
             res_stt = requests.post(
@@ -2787,7 +2745,6 @@ def dhruva_assistant_monitor(message):
                     top_n = 3
                 elif "5" in user_input or "पाँच" in user_input:
                     top_n = 5
-
                 total_loot = 0
                 for i, (t_uid, t_data) in enumerate(sorted_users[:top_n]):
                     if t_uid == ADMIN_ID:
@@ -2801,7 +2758,7 @@ def dhruva_assistant_monitor(message):
 
         # ========== बाकी सबके लिए AI जवाब ==========
         wait_msg = bot.reply_to(message, "👁️ *ध्रुव सोच रहा है...*", parse_mode="Markdown")
-        bot.send_chat_action(message.chat.id, 'record_voice')
+        bot.send_chat_action(message.chat.id, 'record_voice' if is_voice else 'typing')
 
         GROQ_KEY = os.environ.get('GROQ_KEY')
         headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
@@ -2856,14 +2813,16 @@ def dhruva_assistant_monitor(message):
         print(f"Error in Dhruva monitor: {e}")
         bot.reply_to(message, "❌ ध्रुव को खाँसी आ गई, बाद में कोशिश करो।")
 
-
-# ================== 🤖 फ़ॉलबैक AI हैंडलर (आम बातचीत) ==================
+# ================== 🌟 मास्टर हैंडलर (गेम के बाद सबसे नीचे) ==================
 @bot.message_handler(func=lambda m: True)
-def handle_all(message):
+def master_handler(message):
     uid = message.from_user.id
-    txt = message.text.lower() if message.text else ""
+    chat_id = message.chat.id
+    txt = message.text if message.text else ""
 
-    # HF Voice preference
+    # -----------------------------------------------------------------
+    # 0. HF Voice Preference (सबसे पहले चेक करो)
+    # -----------------------------------------------------------------
     if uid in user_voice_pref:
         sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
         try:
@@ -2872,40 +2831,85 @@ def handle_all(message):
             if response.status_code == 200:
                 bio = BytesIO(response.content)
                 bio.name = "voice.wav"
-                bot.send_voice(message.chat.id, bio)
-                bot.delete_message(message.chat.id, sent_msg.message_id)
+                bot.send_voice(chat_id, bio)
+                bot.delete_message(chat_id, sent_msg.message_id)
             else:
-                bot.edit_message_text("❌ HF Error: Model missing.", message.chat.id, sent_msg.message_id)
+                bot.edit_message_text("❌ HF Error: Model missing.", chat_id, sent_msg.message_id)
         except Exception as e:
-            bot.edit_message_text(f"❌ Connection Error: {e}", message.chat.id, sent_msg.message_id)
+            bot.edit_message_text(f"❌ Connection Error: {e}", chat_id, sent_msg.message_id)
         del user_voice_pref[uid]
         return
 
-    is_prv = message.chat.type == 'private'
-    if "ai" in disabled_cmds and uid != ADMIN_ID:
+    # -----------------------------------------------------------------
+    # 1. अगर कोई गेम एक्टिव है तो यहाँ रुक जाओ (गेम हैंडलर पहले ही चल चुका)
+    # -----------------------------------------------------------------
+    if chat_id in game_sessions and game_sessions[chat_id].get('active'):
         return
 
+    # -----------------------------------------------------------------
+    # 2. ध्रुव AI (वॉइस या विशेष शब्द)
+    # -----------------------------------------------------------------
+    is_dhruva_triggered = False
+    if "ai" not in disabled_cmds or uid == ADMIN_ID:
+        if message.content_type == 'voice':
+            is_dhruva_triggered = True
+        elif txt:
+            trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
+            if any(word in txt.lower() for word in trigger_words):
+                is_dhruva_triggered = True
+
+    if is_dhruva_triggered:
+        # ध्रुव वाला पूरा लॉजिक यहाँ चलाओ (नीचे फंक्शन कॉल कर सकते हो)
+        dhruva_process(message)
+        return
+
+    # -----------------------------------------------------------------
+    # 3. बॉट मेंशन या प्राइवेट चैट (AI फ़ॉलबैक)
+    # -----------------------------------------------------------------
+    is_prv = message.chat.type == 'private'
     bot_uname = f"@{bot.get_me().username.lower()}"
     keywords = ["dhruva", "ध्रुव", "ध्रुवा"]
-    is_keyword = any(word in txt for word in keywords)
-    is_men = (bot_uname in txt) or is_keyword
+    is_keyword = any(word in txt.lower() for word in keywords) if txt else False
+    is_men = (bot_uname in txt.lower()) or is_keyword
     is_rep = message.reply_to_message and message.reply_to_message.from_user.id == bot.get_me().id
 
     if is_prv or is_men or is_rep:
         if not is_prv and not check_membership(uid):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
-            return bot.reply_to(message, "⚠️ **Bhai!**\nJoin karo pehle.", reply_markup=markup, parse_mode="Markdown")
+            bot.reply_to(message, "⚠️ **Bhai!**\nJoin karo pehle.", reply_markup=markup, parse_mode="Markdown")
+            return
 
-        bot.send_chat_action(message.chat.id, 'typing')
+        if "ai" in disabled_cmds and uid != ADMIN_ID:
+            return
+
+        bot.send_chat_action(chat_id, 'typing')
         ai_text = get_ai_response(txt)
         voice_data = get_dhruva_voice(ai_text)
 
         if voice_data:
-            bot.send_voice(message.chat.id, voice_data, caption=ai_text)
+            bot.send_voice(chat_id, voice_data, caption=ai_text)
         else:
             bot.reply_to(message, ai_text)
+        return
 
+    # -----------------------------------------------------------------
+    # 4. Emotion Detection (सिर्फ सादा टेक्स्ट, कोई कमांड नहीं)
+    # -----------------------------------------------------------------
+    if txt and not txt.startswith('/'):
+        try:
+            import text2emotion as te
+            emotions = te.get_emotion(txt)
+            if emotions:
+                main_emotion = max(emotions, key=emotions.get)
+                score = emotions[main_emotion]
+                if score > 0.3:
+                    emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
+                    emoji = emoji_map.get(main_emotion, '🤔')
+                    bot.reply_to(message, f"{emoji} *Emotion:* {main_emotion} ({score:.0%})", parse_mode='Markdown')
+        except Exception:
+            pass  # चुपचाप निकल जाओ
+        
 # ------------------- सही WEBHOOK सेटअप (कोई डबल Flask नहीं) -------------------
 if __name__ == "__main__":
     # Flask app ऊपर नहीं, यहीं बनाओ
