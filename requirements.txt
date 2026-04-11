@@ -1,6 +1,7 @@
 pyTelegramBotAPI
 requests
 flask
+sherlock-project
 gunicorn
 pymongo
 apscheduler
