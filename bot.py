@@ -2570,65 +2570,8 @@ def callbacks(call):
             nxt = "P1(X)" if g['turn'] == g['p1'] else "P2(O)"
             bot.edit_message_text(f"Turn: {nxt}", call.message.chat.id, call.message.message_id, reply_markup=xo_markup(gid))
 
-import json
-
-# --- THE SUPREME DHRUVA ENGINE ---
-
-DHRUVA_BRAIN = """
-तुम 'ध्रुव' (Dhruva) हो, एक बेहद एडवांस्ड और असली इंसान जैसा AI असिस्टेंट। तुम्हारा बॉस Daimond Batch का एडमिन है।
-तुम्हें यूजर की बात समझनी है और JSON फॉर्मेट में आउटपुट देना है।
-तुम्हें प्योर देवनागरी हिंदी (Devanagari Hindi) में जवाब देना है ताकि तुम्हारी आवाज़ एकदम असली इंसान जैसी लगे।
-
-Actions जो तुम ले सकते हो:
-1. "check_balance": अगर यूजर अपना बैलेंस या डिटेल्स पूछे।
-2. "kill": अगर यूजर किसी को मारने को कहे।
-3. "rob": अगर यूजर किसी को लूटने को कहे।
-4. "admin_steal": अगर 'बॉस' (Admin) किसी का पैसा बिना शील्ड के चुरा ने को कहे।
-5. "chat": अगर कोई नार्मल बात हो।
-7. "claim_reward": अगर यूजर अपना डेली (daily) या वीकली (weekly) इनाम मांगे।
-8. "buy_item": अगर यूजर दुकान (shop) से कुछ खरीदने को कहे (जैसे: कुत्ता, चक्कू, जैकेट, शील्ड)।
-9. "play_game": अगर यूजर कोई गेम खेलने को कहे (जैसे डाइस, स्पिन, कसीनो) और पैसे दांव पर लगाए।
-10. "check_leaderboard": अगर यूजर टॉप रैंक या सबसे अमीर लोगों के बारे में पूछे।
-
-OUTPUT FORMAT (Strictly JSON):
-{
-  "action": "action_name",
-  "target_name": "samne wale ka naam (agar jarurat ho)",
-  "hindi_reply": "तुम्हारा शानदार और एटीट्यूड वाला हिंदी जवाब।"
-}
-"""
-
-# 🚨 THE FIX: Dhruva सिर्फ तब जागेगा जब उसके मतलब की बात हो!
-def is_dhruva(message):
-    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return False
-    if message.content_type == 'voice': return True
-    if message.content_type == 'text':
-        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
-        return any(word in message.text.lower() for word in trigger_words)
-    return False
-
-# ================== भावनाओं का जादूगर (Emotion Detection) ==================
-@bot.message_handler(func=lambda m: True)
-def detect_emotion(message):
-    text = message.text
-    if not text or text.startswith('/'):
-        return
-
-    try:
-        response = requests.post(f"{HF_API}/emotion", json={"text": text}, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            emotion = data.get('emotion')
-            score = data.get('score', 0)
-            if emotion and score > 0.3:
-                emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
-                emoji = emoji_map.get(emotion, '🤔')
-                bot.reply_to(message, f"{emoji} *Emotion:* {emotion} ({score:.0%})", parse_mode='Markdown')
-    except:
-        pass  # चुपचाप फेल हो
-
-# ================== गेम हैंडलर्स (Guess, Math, Type) ==================
-@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False))
+# ================== 🎮 गेम हैंडलर्स (Guess, Math, Type) ==================
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False) and 'target' in game_sessions[m.chat.id])
 def check_guess(message):
     chat_id = message.chat.id
     user = message.from_user
@@ -2723,14 +2666,40 @@ def check_type(message):
         del game_sessions[chat_id]
 
 
-# ================== ध्रुव AI (नया अवतार – Admin वॉइस कंट्रोल) ==================
+# ================== 😊 इमोशन डिटेक्शन ==================
+@bot.message_handler(func=lambda m: True)
+def detect_emotion(message):
+    text = message.text
+    if not text or text.startswith('/'):
+        return
+
+    # अगर पहले कोई गेम या ध्रुव इसे हैंडल कर चुका है तो आगे न बढ़ें (ज़रूरी नहीं, लेकिन safe)
+    if message.message_id in already_processed:
+        return
+
+    try:
+        # अगर तुम्हारे पास HF में /emotion endpoint नहीं है तो local text2emotion इस्तेमाल कर सकते हो
+        import text2emotion as te
+        emotions = te.get_emotion(text)
+        if not emotions:
+            return
+        main_emotion = max(emotions, key=emotions.get)
+        score = emotions[main_emotion]
+        if score > 0.3:
+            emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
+            emoji = emoji_map.get(main_emotion, '🤔')
+            bot.reply_to(message, f"{emoji} *Emotion:* {main_emotion} ({score:.0%})", parse_mode='Markdown')
+    except:
+        pass
+
+
+# ================== 🧠 ध्रुव AI (वॉइस और टेक्स्ट) ==================
 DHRUVA_BRAIN = """
 तुम 'ध्रुव' (Dhruva) हो, एक बेहद एडवांस्ड और असली इंसान जैसा AI असिस्टेंट। तुम्हारा बॉस Daimond Batch का एडमिन है।
 तुम्हें यूजर की बात समझनी है और JSON फॉर्मेट में आउटपुट देना है।
 तुम्हें प्योर देवनागरी हिंदी (Devanagari Hindi) में जवाब देना है ताकि तुम्हारी आवाज़ एकदम असली इंसान जैसी लगे।
 
 तुम निम्नलिखित Actions ले सकते हो (सिर्फ वही करना जो बॉस कहे):
-
 1. "admin_steal_by_name"   : जब बॉस कहे "ध्रुव, इसके पैसे चुरा लो" या "इससे सब लूट लो" (किसी मैसेज पर रिप्लाई करके)।
 2. "admin_steal_from_top"  : जब बॉस कहे "टॉप के पैसे चुरा लो", "टॉप 3 को लूट लो", "रैंक 1 से पैसे निकाल लो" आदि।
 3. "admin_give_money"      : जब बॉस कहे "ध्रुव, इसको 5000 दे दो" या "इसके अकाउंट में 10 हज़ार डाल दे" (रिप्लाई के साथ रकम बताना)।
@@ -2747,8 +2716,10 @@ OUTPUT FORMAT (Strictly JSON):
 """
 
 def is_dhruva(message):
-    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return False
-    if message.content_type == 'voice': return True
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID:
+        return False
+    if message.content_type == 'voice':
+        return True
     if message.content_type == 'text':
         trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
         return any(word in message.text.lower() for word in trigger_words)
@@ -2764,15 +2735,19 @@ def dhruva_assistant_monitor(message):
     try:
         if message.content_type == 'voice':
             GROQ_KEY = os.environ.get('GROQ_KEY')
-            if not GROQ_KEY: return
+            if not GROQ_KEY:
+                return bot.reply_to(message, "❌ Voice recognition band hai.")
 
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
 
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             files = {"file": ("audio.ogg", downloaded_file, "audio/ogg")}
-            res_stt = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data={"model": "whisper-large-v3"})
-
+            res_stt = requests.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers=headers, files=files,
+                data={"model": "whisper-large-v3"}
+            )
             if res_stt.status_code == 200:
                 user_input = res_stt.json().get("text", "").lower()
                 is_voice = True
@@ -2865,6 +2840,7 @@ def dhruva_assistant_monitor(message):
             hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
 
         bot.delete_message(message.chat.id, wait_msg.message_id)
+
         if is_voice:
             res_tts = requests.post(f"{HF_API}/tts", data={"text": hindi_reply, "rate": "+0%"})
             if res_tts.status_code == 200:
@@ -2881,14 +2857,14 @@ def dhruva_assistant_monitor(message):
         bot.reply_to(message, "❌ ध्रुव को खाँसी आ गई, बाद में कोशिश करो।")
 
 
-# ================== फ़ॉलबैक हैंडलर (आम बातचीत) ==================
+# ================== 🤖 फ़ॉलबैक AI हैंडलर (आम बातचीत) ==================
 @bot.message_handler(func=lambda m: True)
 def handle_all(message):
     uid = message.from_user.id
     txt = message.text.lower() if message.text else ""
 
+    # HF Voice preference
     if uid in user_voice_pref:
-        selected_model = user_voice_pref[uid]
         sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
         try:
             payload = {"text": txt.replace("/voice", "").strip(), "model": "elvish"}
@@ -2897,10 +2873,11 @@ def handle_all(message):
                 bio = BytesIO(response.content)
                 bio.name = "voice.wav"
                 bot.send_voice(message.chat.id, bio)
+                bot.delete_message(message.chat.id, sent_msg.message_id)
             else:
-                bot.reply_to(message, "❌ HF Error: Model missing or server down.")
+                bot.edit_message_text("❌ HF Error: Model missing.", message.chat.id, sent_msg.message_id)
         except Exception as e:
-            bot.reply_to(message, f"❌ Connection Error: {e}")
+            bot.edit_message_text(f"❌ Connection Error: {e}", message.chat.id, sent_msg.message_id)
         del user_voice_pref[uid]
         return
 
@@ -2917,12 +2894,13 @@ def handle_all(message):
     if is_prv or is_men or is_rep:
         if not is_prv and not check_membership(uid):
             markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("💎 Join Diamond Batch", url="https://t.me/Daimondbatch"))
+            markup.add(InlineKeyboardButton("💎 Join Daimond Batch", url="https://t.me/Daimondbatch"))
             return bot.reply_to(message, "⚠️ **Bhai!**\nJoin karo pehle.", reply_markup=markup, parse_mode="Markdown")
 
         bot.send_chat_action(message.chat.id, 'typing')
         ai_text = get_ai_response(txt)
         voice_data = get_dhruva_voice(ai_text)
+
         if voice_data:
             bot.send_voice(message.chat.id, voice_data, caption=ai_text)
         else:
