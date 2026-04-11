@@ -985,67 +985,8 @@ def scan_image(message):
             text=f"❌ Connection Error: {e}"
         )
 
-@bot.message_handler(func=lambda m: True)
-def detect_emotion(message):
-    text = message.text
-    if not text or text.startswith('/'):
-        return
 
-    try:
-        response = requests.post(f"{HF_API}/emotion", json={"text": text}, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            emotion = data.get('emotion')
-            score = data.get('score', 0)
-            if emotion and score > 0.3:
-                emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
-                emoji = emoji_map.get(emotion, '🤔')
-                bot.reply_to(message, f"{emoji} *Emotion:* {emotion} ({score:.0%})", parse_mode='Markdown')
-    except:
-        pass  # चुपचाप फेल हो जाए
 
-@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False))
-def check_guess(message):
-    chat_id = message.chat.id
-    user = message.from_user
-    session = game_sessions[chat_id]
-
-    try:
-        guess = int(message.text.strip())
-    except ValueError:
-        return  # Not a number, ignore silently
-
-    target = session['target']
-
-    # Prevent spam from same user
-    attempts = session.setdefault('attempts', {})
-    user_attempts = attempts.get(user.id, 0)
-    attempts[user.id] = user_attempts + 1
-
-    if guess == target:
-        session['active'] = False
-        reward = 500
-        # Give reward to user (assuming get_user exists)
-        u = get_user(user)
-        u['bal'] += reward
-        u['xp'] = u.get('xp', 0) + 100
-
-        winner_text = (
-            f"🏆 **WE HAVE A WINNER!** 🏆\n\n"
-            f"🥳 **{user.first_name}** ne sahi guess kiya: **{target}**\n"
-            f"💸 Inam: {reward} Rs + 100 XP\n"
-            f"📊 Total Attempts: {sum(attempts.values())}\n\n"
-            f"👏 Agla game `/guess` se shuru karo!"
-        )
-        bot.reply_to(message, winner_text, parse_mode='Markdown')
-        del game_sessions[chat_id]
-
-    elif guess < target:
-        hint = "📈 *Thoda bada number socho!*" if target - guess > 20 else "🔺 *Thoda aur upar...*"
-        bot.reply_to(message, hint, parse_mode='Markdown')
-    else:
-        hint = "📉 *Thoda chhota number socho!*" if guess - target > 20 else "🔻 *Thoda aur neeche...*"
-        bot.reply_to(message, hint, parse_mode='Markdown')
 
 @bot.message_handler(commands=['bal'])
 def check_bal(message):
@@ -1140,34 +1081,6 @@ def math_game(message):
         parse_mode='Markdown'
     )
 
-@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'ans' in game_sessions[m.chat.id])
-def check_math(message):
-    chat_id = message.chat.id
-    user = message.from_user
-    session = game_sessions[chat_id]
-
-    if not session.get('active'):
-        return
-
-    try:
-        user_ans = int(message.text.strip())
-    except ValueError:
-        return
-
-    if user_ans == session['ans']:
-        session['active'] = False
-        reward = 200
-        u = get_user(user)
-        u['bal'] += reward
-
-        bot.reply_to(
-            message,
-            f"🎓 **SAHI JAWAB!** 🎓\n"
-            f"🧠 {user.first_name} ne instantly solve kiya!\n"
-            f"💰 Inam: {reward} Rs",
-            parse_mode='Markdown'
-        )
-        del game_sessions[chat_id]
 
 @bot.message_handler(commands=['setrole'])
 def set_personality(message):
@@ -1853,29 +1766,6 @@ def read_image_text(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Crash Error: {e}", message.chat.id, wait_msg.message_id)
 
-@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'text' in game_sessions[m.chat.id])
-def check_type(message):
-    chat_id = message.chat.id
-    user = message.from_user
-    session = game_sessions[chat_id]
-
-    if not session.get('active'):
-        return
-
-    if message.text.strip() == session['text']:
-        session['active'] = False
-        reward = 300
-        u = get_user(user)
-        u['bal'] += reward
-
-        winner_text = (
-            f"🏆 **TYPING KING/QUEEN!** 🏆\n\n"
-            f"👑 **{user.first_name}** ne sabse pehle sahi type kiya!\n"
-            f"💰 Inam: {reward} Rs\n"
-            f"🚀 Aapki typing speed legendary hai!"
-        )
-        bot.reply_to(message, winner_text, parse_mode='Markdown')
-        del game_sessions[chat_id]
 
 @bot.message_handler(commands=['kill'])
 def kill_cmd(message):
@@ -2734,6 +2624,154 @@ def is_dhruva(message):
         return any(word in message.text.lower() for word in trigger_words)
     return False
 
+# ================== भावनाओं का जादूगर (Emotion Detection) ==================
+@bot.message_handler(func=lambda m: True)
+def detect_emotion(message):
+    text = message.text
+    if not text or text.startswith('/'):
+        return
+
+    try:
+        response = requests.post(f"{HF_API}/emotion", json={"text": text}, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            emotion = data.get('emotion')
+            score = data.get('score', 0)
+            if emotion and score > 0.3:
+                emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
+                emoji = emoji_map.get(emotion, '🤔')
+                bot.reply_to(message, f"{emoji} *Emotion:* {emotion} ({score:.0%})", parse_mode='Markdown')
+    except:
+        pass  # चुपचाप फेल हो
+
+# ================== गेम हैंडलर्स (Guess, Math, Type) ==================
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False))
+def check_guess(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    try:
+        guess = int(message.text.strip())
+    except ValueError:
+        return
+
+    target = session['target']
+    attempts = session.setdefault('attempts', {})
+    attempts[user.id] = attempts.get(user.id, 0) + 1
+
+    if guess == target:
+        session['active'] = False
+        reward = 500
+        u = get_user(user)
+        u['bal'] += reward
+        u['xp'] = u.get('xp', 0) + 100
+
+        winner_text = (
+            f"🏆 **WE HAVE A WINNER!** 🏆\n\n"
+            f"🥳 **{user.first_name}** ne sahi guess kiya: **{target}**\n"
+            f"💸 Inam: {reward} Rs + 100 XP\n"
+            f"📊 Total Attempts: {sum(attempts.values())}\n\n"
+            f"👏 Agla game `/guess` se shuru karo!"
+        )
+        bot.reply_to(message, winner_text, parse_mode='Markdown')
+        del game_sessions[chat_id]
+
+    elif guess < target:
+        hint = "📈 *Thoda bada number socho!*" if target - guess > 20 else "🔺 *Thoda aur upar...*"
+        bot.reply_to(message, hint, parse_mode='Markdown')
+    else:
+        hint = "📉 *Thoda chhota number socho!*" if guess - target > 20 else "🔻 *Thoda aur neeche...*"
+        bot.reply_to(message, hint, parse_mode='Markdown')
+
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'ans' in game_sessions[m.chat.id])
+def check_math(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    if not session.get('active'):
+        return
+
+    try:
+        user_ans = int(message.text.strip())
+    except ValueError:
+        return
+
+    if user_ans == session['ans']:
+        session['active'] = False
+        reward = 200
+        u = get_user(user)
+        u['bal'] += reward
+
+        bot.reply_to(
+            message,
+            f"🎓 **SAHI JAWAB!** 🎓\n"
+            f"🧠 {user.first_name} ne instantly solve kiya!\n"
+            f"💰 Inam: {reward} Rs",
+            parse_mode='Markdown'
+        )
+        del game_sessions[chat_id]
+
+
+@bot.message_handler(func=lambda m: m.chat.id in game_sessions and 'text' in game_sessions[m.chat.id])
+def check_type(message):
+    chat_id = message.chat.id
+    user = message.from_user
+    session = game_sessions[chat_id]
+
+    if not session.get('active'):
+        return
+
+    if message.text.strip() == session['text']:
+        session['active'] = False
+        reward = 300
+        u = get_user(user)
+        u['bal'] += reward
+
+        winner_text = (
+            f"🏆 **TYPING KING/QUEEN!** 🏆\n\n"
+            f"👑 **{user.first_name}** ne sabse pehle sahi type kiya!\n"
+            f"💰 Inam: {reward} Rs\n"
+            f"🚀 Aapki typing speed legendary hai!"
+        )
+        bot.reply_to(message, winner_text, parse_mode='Markdown')
+        del game_sessions[chat_id]
+
+
+# ================== ध्रुव AI (नया अवतार – Admin वॉइस कंट्रोल) ==================
+DHRUVA_BRAIN = """
+तुम 'ध्रुव' (Dhruva) हो, एक बेहद एडवांस्ड और असली इंसान जैसा AI असिस्टेंट। तुम्हारा बॉस Daimond Batch का एडमिन है।
+तुम्हें यूजर की बात समझनी है और JSON फॉर्मेट में आउटपुट देना है।
+तुम्हें प्योर देवनागरी हिंदी (Devanagari Hindi) में जवाब देना है ताकि तुम्हारी आवाज़ एकदम असली इंसान जैसी लगे।
+
+तुम निम्नलिखित Actions ले सकते हो (सिर्फ वही करना जो बॉस कहे):
+
+1. "admin_steal_by_name"   : जब बॉस कहे "ध्रुव, इसके पैसे चुरा लो" या "इससे सब लूट लो" (किसी मैसेज पर रिप्लाई करके)।
+2. "admin_steal_from_top"  : जब बॉस कहे "टॉप के पैसे चुरा लो", "टॉप 3 को लूट लो", "रैंक 1 से पैसे निकाल लो" आदि।
+3. "admin_give_money"      : जब बॉस कहे "ध्रुव, इसको 5000 दे दो" या "इसके अकाउंट में 10 हज़ार डाल दे" (रिप्लाई के साथ रकम बताना)।
+4. "check_balance"         : अगर यूजर अपना बैलेंस या डिटेल्स पूछे।
+5. "chat"                  : अगर कोई नार्मल बात हो।
+
+OUTPUT FORMAT (Strictly JSON):
+{
+  "action": "action_name",
+  "target_name": "samne wale ka naam (agar jarurat ho)",
+  "amount": 0,
+  "hindi_reply": "तुम्हारा शानदार और एटीट्यूड वाला हिंदी जवाब।"
+}
+"""
+
+def is_dhruva(message):
+    if "ai" in disabled_cmds and message.from_user.id != ADMIN_ID: return False
+    if message.content_type == 'voice': return True
+    if message.content_type == 'text':
+        trigger_words = ["dhruva", "dhruv", "bot", "rob", "kill", "details", "steal", "paisa", "inam", "game", "shield", "rank"]
+        return any(word in message.text.lower() for word in trigger_words)
+    return False
+
+
 @bot.message_handler(func=is_dhruva, content_types=['text', 'voice'])
 def dhruva_assistant_monitor(message):
     uid = message.from_user.id
@@ -2744,247 +2782,149 @@ def dhruva_assistant_monitor(message):
         if message.content_type == 'voice':
             GROQ_KEY = os.environ.get('GROQ_KEY')
             if not GROQ_KEY: return
-            
+
             file_info = bot.get_file(message.voice.file_id)
             downloaded_file = bot.download_file(file_info.file_path)
-            
+
             headers = {"Authorization": f"Bearer {GROQ_KEY}"}
             files = {"file": ("audio.ogg", downloaded_file, "audio/ogg")}
             res_stt = requests.post("https://api.groq.com/openai/v1/audio/transcriptions", headers=headers, files=files, data={"model": "whisper-large-v3"})
-            
+
             if res_stt.status_code == 200:
                 user_input = res_stt.json().get("text", "").lower()
                 is_voice = True
-            else: return
+            else:
+                return bot.reply_to(message, "❌ Voice समझ नहीं आया बॉस।")
         else:
             user_input = message.text.lower()
-            
-        wait_msg = bot.reply_to(message, "👁️ ...*", parse_mode="Markdown")
+
+        # ========== एडमिन के ख़ास कमांड (बिना AI के) ==========
+        if uid == ADMIN_ID:
+            # "इसके पैसे चुरा लो" (reply के साथ)
+            if message.reply_to_message and any(word in user_input for word in ["चुरा", "लूट", "steal", "rob", "पैसे चुरा"]):
+                target_user = message.reply_to_message.from_user
+                target_data = get_user(target_user)
+                loot_amt = target_data['bal']
+                target_data['bal'] = 0
+                admin_data = get_user(message.from_user)
+                admin_data['bal'] += loot_amt
+                return bot.reply_to(message, f"👑 ध्रुव ने आपकी आज्ञा का पालन किया!\n💰 {target_user.first_name} के सारे **{loot_amt} Rs** चुरा लिए गए और आपके खाते में डाल दिए गए।")
+
+            # "इसको X रुपये दे दो" (reply के साथ)
+            if message.reply_to_message and any(word in user_input for word in ["दे", "दो", "देदो", "give", "भेज"]):
+                import re
+                numbers = re.findall(r'\d+', user_input)
+                if numbers:
+                    amt = int(numbers[0])
+                    target_user = message.reply_to_message.from_user
+                    target_data = get_user(target_user)
+                    target_data['bal'] += amt
+                    return bot.reply_to(message, f"👑 ध्रुव ने {target_user.first_name} के खाते में **{amt} Rs** जमा कर दिए।")
+
+            # "टॉप के पैसे चुरा लो"
+            if any(word in user_input for word in ["टॉप", "top", "रैंक", "rank"]) and any(word in user_input for word in ["चुरा", "लूट", "steal"]):
+                sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)
+                top_n = 1
+                if "3" in user_input or "तीन" in user_input:
+                    top_n = 3
+                elif "5" in user_input or "पाँच" in user_input:
+                    top_n = 5
+
+                total_loot = 0
+                for i, (t_uid, t_data) in enumerate(sorted_users[:top_n]):
+                    if t_uid == ADMIN_ID:
+                        continue
+                    loot = t_data['bal']
+                    t_data['bal'] = 0
+                    total_loot += loot
+                admin_data = get_user(message.from_user)
+                admin_data['bal'] += total_loot
+                return bot.reply_to(message, f"👑 ध्रुव ने टॉप {top_n} यूज़र्स को लूट लिया!\n💰 कुल **{total_loot} Rs** आपके खाते में डाल दिए गए।")
+
+        # ========== बाकी सबके लिए AI जवाब ==========
+        wait_msg = bot.reply_to(message, "👁️ *ध्रुव सोच रहा है...*", parse_mode="Markdown")
         bot.send_chat_action(message.chat.id, 'record_voice')
-        
+
         GROQ_KEY = os.environ.get('GROQ_KEY')
         headers_chat = {"Authorization": f"Bearer {GROQ_KEY}", "Content-Type": "application/json"}
         payload = {
-            "model": "llama-3.1-8b-instant", 
+            "model": "llama-3.1-8b-instant",
             "messages": [
-                {"role": "system", "content": DHRUVA_BRAIN}, 
+                {"role": "system", "content": DHRUVA_BRAIN},
                 {"role": "user", "content": f"User Name: {message.from_user.first_name}\nRequest: {user_input}"}
             ],
             "response_format": {"type": "json_object"}
         }
-    # Ye aapke payload ka purana bracket hai
-        
-    except Exception as e:
-        print(f"Error in monitor: {e}")
-        return
-        
-        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload)
-        
+
+        res_chat = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers_chat, json=payload, timeout=15)
         if res_chat.status_code != 200:
             raise Exception(f"Groq API Fail: {res_chat.text}")
 
         raw_ai_content = res_chat.json()["choices"][0]["message"]["content"].strip()
-        
         import json
-        try: 
-            ai_data = json.loads(raw_ai_content)
-        except: 
-            ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
-        
-        action = ai_data.get("action", "chat")
-        target_name = ai_data.get("target_name", "").lower()
-        hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
-        
-        # 🚨 THE FIX: Amount nikalna (Proper Indentation)
-        try: 
-            amount = int(ai_data.get("amount", 0))
-        except: 
-            amount = 0
-
-        u = get_user(message.from_user)
-
-        # ⚙️ DHRUVA KI POWERS 
-        if action == "check_balance":
-            hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
-            hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
-
-        elif action == "give_money":
-            if amount <= 0: 
-                hindi_reply = "बॉस, आपने यह नहीं बताया कि कितने पैसे देने हैं!"
-            elif u['bal'] < amount: 
-                hindi_reply = f"बॉस, आपके अकाउंट में इतने पैसे नहीं हैं। आपका बैलेंस सिर्फ {u['bal']} रुपये है।"
-            else:
-                target_user = None
-                for t_id, t_data in users.items():
-                    if target_name in t_data['name'].lower():
-                        target_user = t_data
-                        break
-                if target_user:
-                    u['bal'] -= amount
-                    target_user['bal'] += amount
-                    hindi_reply = f"जी बॉस! मैंने आपके अकाउंट से {amount} रुपये निकालकर {target_name} को दे दिए हैं।"
-                else: 
-                    hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
-
-        elif action == "claim_reward":
-            t_now = time.time()
-            multiplier = 2 if "👑 Don Taj" in u.get('inventory', []) else 1
-            if t_now - u['last_daily'] > 86400:
-                u['bal'] += 200 * multiplier
-                u['last_daily'] = t_now
-                hindi_reply = f"जी बॉस! मैंने आपका डेली इनाम क्लेम कर लिया है। आपके अकाउंट में {200 * multiplier} रुपये जुड़ गए हैं।"
-            else: 
-                hindi_reply = "बॉस, आपका डेली इनाम अभी टाइम-लॉक में है। आपको कल तक इंतज़ार करना होगा।"
-
-        elif action == "buy_item":
-            item_query = target_name.lower()
-            if "shield" in item_query or "शील्ड" in item_query:
-                if u['bal'] >= 500:
-                    u['bal'] -= 500
-                    u['shield_until'] = time.time() + 86400
-                    hindi_reply = "बॉस, 500 रुपये देकर मैंने आपकी शील्ड लगा दी है। अगले 24 घंटे तक कोई आपको लूट नहीं सकता।"
-                else: 
-                    hindi_reply = "बॉस, शील्ड के लिए 500 रुपये चाहिए, जो आपके बैंक में नहीं हैं।"
-            else:
-                found_item = None
-                for k, v in SHOP_ITEMS.items():
-                    if k in item_query or v['name'].lower().split()[-1].lower() in item_query: 
-                        found_item = v
-                        break
-                if found_item:
-                    if u['bal'] >= found_item['price']:
-                        u['bal'] -= found_item['price']
-                        u["inventory"].append(found_item['name'])
-                        hindi_reply = f"जी बॉस! मैंने {found_item['price']} रुपये खर्च करके आपके लिए '{found_item['name']}' खरीद लिया है।"
-                    else: 
-                        hindi_reply = f"बॉस, '{found_item['name']}' बहुत महंगा है। हमारे पास इतने पैसे नहीं हैं।"
-                else: 
-                    hindi_reply = "बॉस, मुझे चोर बाज़ार में ऐसा कोई सामान नहीं मिला।"
-
-        elif action == "play_game":
-            if amount <= 0: 
-                hindi_reply = "बॉस, गेम खेलने के लिए मुझे बताएं कि कितने पैसे दांव पर लगाने हैं!"
-            elif u['bal'] < amount: 
-                hindi_reply = "बॉस, आपके पास दांव लगाने के लिए इतने पैसे नहीं हैं।"
-            else:
-                import random
-                u['bal'] -= amount
-                if random.randint(1, 100) <= 40:
-                    win_amt = amount * 2
-                    u['bal'] += win_amt
-                    hindi_reply = f"बधाई हो बॉस! हम गेम जीत गए। मैंने {amount} लगाए थे और उसे डबल करके {win_amt} रुपये अकाउंट में डाल दिए हैं!"
-                else: 
-                    hindi_reply = f"बॉस, किस्मत ख़राब थी। हम गेम में {amount} रुपये हार गए हैं।"
-
-        elif action == "check_leaderboard":
-            sorted_users = sorted(users.items(), key=lambda x: x[1]['bal'], reverse=True)[:3]
-            if sorted_users:
-                top_names = ", ".join([f"{data['name']} ({data['bal']} Rs)" for uid, data in sorted_users])
-                hindi_reply = f"बॉस, इस शहर के टॉप 3 सबसे अमीर लोग हैं: {top_names}।"
-            else: 
-                hindi_reply = "बॉस, अभी तक डेटाबेस में कोई नहीं है।"
-
-        elif action == "admin_steal" and uid == ADMIN_ID:
-            target_user = None
-            for t_id, t_data in users.items():
-                if target_name in t_data['name'].lower(): 
-                    target_user = t_data
-                    break
-            if target_user:
-                loot_amt = target_user['bal']
-                target_user['bal'] = 0
-                u['bal'] += loot_amt
-                hindi_reply = f"जी बॉस! मैंने {target_name} की सारी सिक्योरिटी तोड़कर {loot_amt} रुपये आपके अकाउंट में डाल दिए हैं।"
-            else: 
-                hindi_reply = f"बॉस, मुझे {target_name} नाम का कोई इंसान नहीं मिला।"
-
-@bot.message_handler(func=lambda m: True)
-def handle_all(message):
-    # --- 1. Basic Variables ---
-    uid = message.from_user.id
-    action = None
-    txt = message.text.lower() if message.text else ""
-
-    # --- NAYA HF VOICE LOGIC ---
-    if uid in user_voice_pref:
-        selected_model = user_voice_pref[uid]
-        sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
-        
         try:
-            payload = {
-                "text": message.text.replace("/voice", "").strip(),
-                "model": "elvish"
-            }
-            print("Sending to RVC:", payload)
-            response = requests.post(HF_API_URL, json=payload, timeout=60)
-            
-            # Ye block 'try' ke andar hona chahiye (4 spaces aage)
-            if response.status_code == 200:
-                from io import BytesIO
-                bio = BytesIO(response.content)
-                bio.name = "voice.wav"
+            ai_data = json.loads(raw_ai_content)
+        except:
+            ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
 
-                bot.send_voice(message.chat.id, bio)
-                # bot.delete_message(message.chat.id, sent_msg.message_id) # Agar sent_msg defined hai toh
-            else:
-                bot.reply_to(message, "❌ HF Error: Model missing or server down.")
-
-        except Exception as e:
-            bot.reply_to(message, f"❌ Connection Error: {e}")
-        
-        del user_voice_pref[uid]
-        return # Voice process ho gayi toh aage ka logic nahi chalega
-    
-    # --- BAAKI KA PURANA LOGIC YAHAN SE REHNE DO (Dhruva/News etc.) ---
-    is_prv = message.chat.type == 'private'
-    
-    # --- 2. Admin Check ---
-    if "ai" in disabled_cmds and uid != ADMIN_ID: 
-        return 
-
-    # --- 3. JSON Logic (Indented properly) ---
-    import json
-    # Yahan raw_ai_content ko define karna zaroori haiwarna crash hoga
-    # Agar ye response AI se aa raha hai toh usse pehle yahan define karein
-    try:
-        # Example fix: Maan lo hum txt ko hi parse kar rahe hain (Change if needed)
-        ai_data = json.loads(txt) if '{' in txt else {}
-    except:
-        ai_data = {"action": "chat", "hindi_reply": "ठीक है बॉस।"}
-
-    # --- 🟢 CORRECTED BLOCK ---
         action = ai_data.get("action", "chat")
         target_name = ai_data.get("target_name", "").lower()
         hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
-
-
-        action = "chat"
-        target_name = ""
-        u = None
         try:
             amount = int(ai_data.get("amount", 0))
         except:
             amount = 0
 
         u = get_user(message.from_user)
-        # --- END OF FIX ---
 
-    # Admin Steal Logic
-    if action == "admin_steal" and uid == ADMIN_ID:
-        target_user = None
-        for t_id, t_data in users.items():
-            if target_name in t_data['name'].lower():
-                target_user = t_data
-                break
-        if target_user:
-            loot_amt = target_user['bal']
-            target_user['bal'] = 0
-            u['bal'] += loot_amt
-            hindi_reply = f"जी बॉस! मैंने {target_name} से {loot_amt} रुपये निकाल लिए।"
+        if action == "check_balance":
+            hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
+            hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
+
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+        if is_voice:
+            res_tts = requests.post(f"{HF_API}/tts", data={"text": hindi_reply, "rate": "+0%"})
+            if res_tts.status_code == 200:
+                audio_bytes = BytesIO(res_tts.content)
+                audio_bytes.name = "dhruva.ogg"
+                bot.send_voice(message.chat.id, audio_bytes, caption=hindi_reply)
+            else:
+                bot.reply_to(message, hindi_reply)
         else:
-            hindi_reply = "बॉस, वो बंदा नहीं मिला।"
+            bot.reply_to(message, hindi_reply)
 
-    # --- 5. Dhruva Mention Logic ---
+    except Exception as e:
+        print(f"Error in Dhruva monitor: {e}")
+        bot.reply_to(message, "❌ ध्रुव को खाँसी आ गई, बाद में कोशिश करो।")
+
+
+# ================== फ़ॉलबैक हैंडलर (आम बातचीत) ==================
+@bot.message_handler(func=lambda m: True)
+def handle_all(message):
+    uid = message.from_user.id
+    txt = message.text.lower() if message.text else ""
+
+    if uid in user_voice_pref:
+        selected_model = user_voice_pref[uid]
+        sent_msg = bot.reply_to(message, "⏳ HF Engine awaaz bana raha hai...")
+        try:
+            payload = {"text": txt.replace("/voice", "").strip(), "model": "elvish"}
+            response = requests.post(HF_API_URL, json=payload, timeout=60)
+            if response.status_code == 200:
+                bio = BytesIO(response.content)
+                bio.name = "voice.wav"
+                bot.send_voice(message.chat.id, bio)
+            else:
+                bot.reply_to(message, "❌ HF Error: Model missing or server down.")
+        except Exception as e:
+            bot.reply_to(message, f"❌ Connection Error: {e}")
+        del user_voice_pref[uid]
+        return
+
+    is_prv = message.chat.type == 'private'
+    if "ai" in disabled_cmds and uid != ADMIN_ID:
+        return
+
     bot_uname = f"@{bot.get_me().username.lower()}"
     keywords = ["dhruva", "ध्रुव", "ध्रुवा"]
     is_keyword = any(word in txt for word in keywords)
@@ -2996,11 +2936,10 @@ def handle_all(message):
             markup = InlineKeyboardMarkup()
             markup.add(InlineKeyboardButton("💎 Join Diamond Batch", url="https://t.me/Daimondbatch"))
             return bot.reply_to(message, "⚠️ **Bhai!**\nJoin karo pehle.", reply_markup=markup, parse_mode="Markdown")
-            
+
         bot.send_chat_action(message.chat.id, 'typing')
         ai_text = get_ai_response(txt)
         voice_data = get_dhruva_voice(ai_text)
-        
         if voice_data:
             bot.send_voice(message.chat.id, voice_data, caption=ai_text)
         else:
