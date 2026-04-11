@@ -827,53 +827,6 @@ def auto_news_broadcast():
     except Exception as e:
         print(f"News Anchor System Error: {e}")
 
-import subprocess
-
-import sherlock
-from sherlock import sherlock as sh
-
-@bot.message_handler(commands=['scanuser'])
-def scan_social_user(message):
-    username = message.text.split(' ', 1)[-1]
-    if not username:
-        bot.reply_to(message, "Usage: /scanuser <username>")
-        return
-
-    wait_msg = bot.reply_to(message, f"🔍 `{username}` ko duniya bhar mein dhundh raha hoon...")
-
-    try:
-        # Sherlock को सीधे Python से कॉल करना
-        results = {}
-        # Sherlock की main query function का उपयोग
-        query = sh.Query(username)
-        sh.sherlock(query, results, timeout=30)
-
-        if results:
-            sites = list(results.keys())
-            # ज़्यादा साइट्स होने पर छोटा करना
-            display_sites = sites[:15]  # पहले 15 दिखाओ
-            site_list = "\n".join([f"✅ {site}: {results[site]['url_user']}" for site in display_sites])
-            if len(sites) > 15:
-                site_list += f"\n\n... और {len(sites)-15} अन्य साइट्स पर मिला।"
-
-            bot.edit_message_text(
-                f"🔎 **{username}** के अकाउंट्स:\n\n{site_list}",
-                chat_id=message.chat.id,
-                message_id=wait_msg.message_id,
-                parse_mode='Markdown'
-            )
-        else:
-            bot.edit_message_text(
-                f"❌ **{username}** कहीं नहीं मिला।",
-                chat_id=message.chat.id,
-                message_id=wait_msg.message_id
-            )
-    except Exception as e:
-        bot.edit_message_text(
-            f"❌ Sherlock scan fail: {str(e)[:100]}",
-            chat_id=message.chat.id,
-            message_id=wait_msg.message_id
-        )
 
 @bot.message_handler(commands=['video'])
 def make_ai_video(message):
