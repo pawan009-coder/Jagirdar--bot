@@ -646,7 +646,8 @@ def background_monitor():
         
 @bot.message_handler(commands=['start'])
 def start_cmd(message):
-    get_user(message.from_user)
+    print(f"🔥 /start received from {message.from_user.id}")
+    # ... बाकी कोड ...
     
     # Bot ko yaad dilana ki wo is group me active hai
     if message.chat.type != 'private':
