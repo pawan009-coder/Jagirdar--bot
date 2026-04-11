@@ -109,6 +109,15 @@ bot.set_my_commands([
     # 🎲 NAYE GAMES
     BotCommand("sps", "🪨📄✂️ Stone Paper Scissor khelein"),
     BotCommand("dance", "🕺 Balle Balle! Party Time"),
+    BotCommand("guess", "🔢 1-100 ke beech number guess karo"),
+    BotCommand("type", "⌨️ Typing race khelo"),
+    BotCommand("math", "➕ Math quiz solve karo"),
+    BotCommand("setrole", "🎭 Bot ka personality custom set karo"),
+    BotCommand("setroleoff", "🛑 Custom personality band karo"),
+    BotCommand("stealth", "🥷 Stealth mode ON/OFF"),
+    BotCommand("scanuser", "🔍 Kisi social media username ko scan karo"),
+    BotCommand("nuke", "💣 Poora database reset (Admin only)"),
+    BotCommand("setdance", "💃 Dance GIF change karo (Admin only)"),
     
     # 👑 NAYE ADMIN COMMANDS (Sirf Boss ke liye)
     BotCommand("list", "👑 DM me sabki list dekhein"),
@@ -224,6 +233,22 @@ Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saa
 
 *Agar bot pasand aaye, toh apne sabhi Telegram groups mein isko add karo aur Daimond Batch ka jalwa dikhao!*
 """
+help_text_3 = """
+🎮 **NEW GAMES & CUSTOMIZATION** 🎮
+
+🔹 `/guess` – Group में 1-100 के बीच नंबर guess करो। सबसे पहले सही बताने वाले को 500 Rs + 100 XP!
+🔹 `/type` – Typing race खेलो। दिए गए sentence को सबसे तेज़ टाइप करो और 300 Rs जीतो।
+🔹 `/math` – तेज़ दिमाग़ वालों के लिए। जोड़ के सवाल का जवाब दो और 200 Rs पाओ।
+🔹 `/setrole <role>` – अपने हिसाब से बॉट का personality सेट करो (जैसे `philosopher`, `girlfriend`, `mentor`)।
+🔹 `/setroleoff` – Custom personality बंद करके default mode पर लौट आओ।
+🔹 `/stealth` – Stealth mode ON/OFF करो ताकि कोई तुम्हारी activity ट्रैक न कर सके।
+🔹 `/scanuser <username>` – किसी भी username को 300+ social networks पर ढूँढो (Sherlock के ज़रिए)।
+🔹 `/nuke` – (Admin only) पूरे डेटाबेस को reset करके सबको 1000 Rs पर ले आओ।
+🔹 `/setdance` – (Admin only) अपनी पसंद का GIF डालकर `/dance` कमांड का डांस बदलो।
+
+💡 *इन सबके अलावा `/shop` से नए हथियार खरीदकर अपनी ताक़त बढ़ाओ!*
+"""
+
 
     try:
         # Message 1 bhejna
