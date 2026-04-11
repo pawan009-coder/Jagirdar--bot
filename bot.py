@@ -23,10 +23,6 @@ import requests
 import random
 import time
 import io
-import numpy as np
-import face_recognition
-import pytesseract
-import text2emotion as te
 from PIL import Image
 from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
@@ -951,94 +947,64 @@ def toggle_stealth(message):
 def scan_image(message):
     user = message.from_user
     file_id = message.photo[-1].file_id
-
-    # Acknowledge receipt
-    processing_msg = bot.reply_to(message, "🔍 **Scanning image...**")
+    processing_msg = bot.reply_to(message, "🔍 **HF Space पर स्कैन हो रहा है...**")
 
     try:
         file_info = bot.get_file(file_id)
         downloaded = bot.download_file(file_info.file_path)
-        image = Image.open(io.BytesIO(downloaded))
+        files = {'image': ('image.jpg', downloaded, 'image/jpeg')}
+        
+        # HF Space के नए एंडपॉइंट को कॉल करो
+        response = requests.post(f"{HF_API}/scan", files=files, timeout=90)
 
-        result_lines = []
-
-        # ---------- Face Detection ----------
-        try:
-            import face_recognition
-            import numpy as np
-            img_array = np.array(image)
-            face_locations = face_recognition.face_locations(img_array)
-            face_count = len(face_locations)
-            if face_count > 0:
-                result_lines.append(f"👤 **Faces Detected:** {face_count}")
-            else:
-                result_lines.append("👤 **Faces:** None")
-        except Exception as e:
-            result_lines.append(f"⚠️ Face detection skipped: {e}")
-
-        # ---------- OCR (Text Extraction) ----------
-        try:
-            import pytesseract
-            text = pytesseract.image_to_string(image).strip()
-            if text:
-                # Truncate long text
-                display_text = (text[:300] + '...') if len(text) > 300 else text
-                result_lines.append(f"📝 **Extracted Text:**\n```{display_text}```")
-            else:
-                result_lines.append("📝 **Text:** None")
-        except Exception as e:
-            result_lines.append(f"⚠️ OCR skipped: {e}")
-
-        # Send final result
-        final_output = "\n\n".join(result_lines) if result_lines else "❌ Kuch detect nahi ho paya."
-        bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=processing_msg.message_id,
-            text=f"📊 **Scan Report** 📊\n\n{final_output}",
-            parse_mode='Markdown'
-        )
-
+        if response.status_code == 200:
+            result = response.json()
+            final_output = ""
+            if result.get('faces'):
+                final_output += f"👤 **Faces Detected:** {result['faces']}\n\n"
+            if result.get('text'):
+                display_text = result['text'][:300] + ('...' if len(result['text'])>300 else '')
+                final_output += f"📝 **Extracted Text:**\n```{display_text}```"
+            if not final_output:
+                final_output = "❌ कुछ भी detect नहीं हुआ।"
+            
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=processing_msg.message_id,
+                text=f"📊 **Scan Report** 📊\n\n{final_output}",
+                parse_mode='Markdown'
+            )
+        else:
+            bot.edit_message_text(
+                chat_id=message.chat.id,
+                message_id=processing_msg.message_id,
+                text=f"❌ HF Space Error: {response.text}"
+            )
     except Exception as e:
         bot.edit_message_text(
             chat_id=message.chat.id,
             message_id=processing_msg.message_id,
-            text=f"❌ Image scan failed: {e}"
+            text=f"❌ Connection Error: {e}"
         )
 
 @bot.message_handler(func=lambda m: True)
 def detect_emotion(message):
     text = message.text
-    if not text:
-        return
-
-    # Skip if it's a command
-    if text.startswith('/'):
+    if not text or text.startswith('/'):
         return
 
     try:
-        import text2emotion as te
-        emotions = te.get_emotion(text)
-        if not emotions:
-            return
-
-        main_emotion = max(emotions, key=emotions.get)
-        score = emotions[main_emotion]
-
-        # Only respond if confidence > 0.3
-        if score > 0.3:
-            emoji_map = {
-                'Happy': '😊', 'Angry': '😠', 'Surprise': '😲',
-                'Sad': '😢', 'Fear': '😨'
-            }
-            emoji = emoji_map.get(main_emotion, '🤔')
-            bot.reply_to(
-                message,
-                f"{emoji} *Emotion:* {main_emotion} ({score:.0%})",
-                parse_mode='Markdown'
-            )
-    except Exception as e:
-        # Fail silently – emotion detection is non-critical
-        pass
+        response = requests.post(f"{HF_API}/emotion", json={"text": text}, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            emotion = data.get('emotion')
+            score = data.get('score', 0)
+            if emotion and score > 0.3:
+                emoji_map = {'Happy':'😊','Angry':'😠','Surprise':'😲','Sad':'😢','Fear':'😨'}
+                emoji = emoji_map.get(emotion, '🤔')
+                bot.reply_to(message, f"{emoji} *Emotion:* {emotion} ({score:.0%})", parse_mode='Markdown')
+    except:
+        pass  # चुपचाप फेल हो जाए
 
 @bot.message_handler(func=lambda m: m.chat.id in game_sessions and game_sessions[m.chat.id].get('active', False))
 def check_guess(message):
