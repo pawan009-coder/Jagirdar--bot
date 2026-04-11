@@ -228,7 +228,6 @@ Daimond Batch ka bot duniya ke sabse advanced AI models se connected hai. Ye saa
 🔹 `/dance` : Group mein mahol banane ke liye Balle-Balle wala party GIF
 
 *Agar bot pasand aaye, toh apne sabhi Telegram groups mein isko add karo aur Daimond Batch ka jalwa dikhao!*
-"""
 help_text_3 = """
 🎮 **NEW GAMES & CUSTOMIZATION** 🎮
 
@@ -245,18 +244,20 @@ help_text_3 = """
 💡 *इन सबके अलावा `/shop` से नए हथियार खरीदकर अपनी ताक़त बढ़ाओ!*
 """
 
-
-    try:
-        # Message 1 bhejna
-        bot.send_message(message.chat.id, help_text_1, parse_mode="Markdown")
-        # 1 second rukna taaki Telegram spam detect na kare
-        time.sleep(1)
-        # Message 2 bhejna
-        bot.send_message(message.chat.id, help_text_2, parse_mode="Markdown")
-        
-        bot.delete_message(message.chat.id, wait_msg.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
+try:
+    # Message 1 bhejna
+    bot.send_message(message.chat.id, help_text_1, parse_mode="Markdown")
+    # 1 second rukna taaki Telegram spam detect na kare
+    time.sleep(1)
+    # Message 2 bhejna
+    bot.send_message(message.chat.id, help_text_2, parse_mode="Markdown")
+    time.sleep(1)
+    # Message 3 bhejna
+    bot.send_message(message.chat.id, help_text_3, parse_mode="Markdown")
+    
+    bot.delete_message(message.chat.id, wait_msg.message_id)
+except Exception as e:
+    bot.edit_message_text(f"❌ Panna phat gaya sa! Error: {e}", message.chat.id, wait_msg.message_id)
 
 def generate_voice(text):
     try:
@@ -286,7 +287,6 @@ def generate_voice(text):
     except Exception as e:
         print("❌ Exception:", e)
         return None
-
 # ==========================================
 # 👑 SUPREME ADMIN CONTROL PANEL (DM ONLY)
 # ==========================================
