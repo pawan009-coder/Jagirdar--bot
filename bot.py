@@ -1093,7 +1093,7 @@ def tts_command(message):
     try:
         # 3. HF Space API को कॉल करें
         api_url = "https://singhp08-tts.hf.space/tts"   # <-- आपके स्पेस का URL
-        response = requests.post(api_url, data={'text': text}, timeout=30)
+        response = requests.post(api_url, data={'text': text}, timeout=300)
         
         if response.status_code == 200:
             # 4. ऑडियो को Telegram पर भेजें
