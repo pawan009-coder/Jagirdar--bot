@@ -9,7 +9,7 @@ pytz
 feedparser
 deep-translator
 Pillow
-pyrogram
-pytgcalls
+pyrogram==2.0.106
+pytgcalls==2.1.0
 yt-dlp
 # आपकी बाकी की सभी लाइब्रेरी (flask, gunicorn, pymongo, आदि) जस की तस रहेंगी।
