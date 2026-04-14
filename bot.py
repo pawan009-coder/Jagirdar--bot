@@ -2718,6 +2718,7 @@ def dhruva_process(message):
     is_voice = False
 
     try:
+        # ---------- वॉइस इनपुट हैंडलिंग (Groq Whisper) ----------
         if message.content_type == 'voice':
             GROQ_KEY = os.environ.get('GROQ_KEY')
             if not GROQ_KEY:
@@ -2735,11 +2736,11 @@ def dhruva_process(message):
                 user_input = res_stt.json().get("text", "").lower()
                 is_voice = True
             else:
-                return bot.reply_to(message, "❌ Voice समझ नहीं आया बॉस।")
+                return bot.reply_to(message, "❌ Voice समझ नहीं स।")
         else:
             user_input = message.text.lower()
 
-        # ========== एडमिन के ख़ास कमांड (बिना AI के) ==========
+        # ---------- एडमिन के ख़ास कमांड (बिना AI के) ----------
         if uid == ADMIN_ID:
             # "इसके पैसे चुरा लो" (reply के साथ)
             if message.reply_to_message and any(word in user_input for word in ["चुरा", "लूट", "steal", "rob", "पैसे चुरा"]):
@@ -2781,12 +2782,16 @@ def dhruva_process(message):
                 admin_data['bal'] += total_loot
                 return bot.reply_to(message, f"👑 ध्रुव ने टॉप {top_n} यूज़र्स को लूट लिया!\n💰 कुल **{total_loot} Rs** आपके खाते में डाल दिए गए।")
 
-                # ========== AI जवाब (CF प्राथमिक, Groq बैकअप) ==========
-        wait_msg = bot.reply_to(message, "👁️ *ध्रुव सोच रहा है...*", parse_mode="Markdown")
+        # ---------- AI जवाब (CF प्राथमिक, Groq बैकअप) ----------
+        wait_msg = bot.reply_to(message, "👁️ ..*", parse_mode="Markdown")
         bot.send_chat_action(message.chat.id, 'record_voice' if is_voice else 'typing')
 
-        # ---- Cloudflare attempt ----
         hindi_reply = None
+        action = "chat"
+        target_name = ""
+        amount = 0
+
+        # ---- 1. मुख्य इंजन: Cloudflare Workers AI ----
         try:
             CF_ACCOUNT_ID = os.environ.get('CF_ID')
             CF_API_TOKEN = os.environ.get('CF')
@@ -2813,11 +2818,12 @@ def dhruva_process(message):
                             ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
                         hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
                         action = ai_data.get("action", "chat")
-                        # ... (बाकी एक्शन हैंडलिंग)
+                        target_name = ai_data.get("target_name", "").lower()
+                        amount = int(ai_data.get("amount", 0))
         except Exception as e:
-            print(f"Cloudflare failed in Dhruva: {e}")
+            print(f"⚠️ Cloudflare failed in Dhruva: {e}")
 
-        # ---- Groq fallback ----
+        # ---- 2. बैकअप इंजन: Groq ----
         if hindi_reply is None:
             try:
                 GROQ_KEY = os.environ.get('GROQ_KEY')
@@ -2839,11 +2845,37 @@ def dhruva_process(message):
                     except:
                         ai_data = {"action": "chat", "target_name": "", "hindi_reply": "बॉस, मुझे आपकी बात समझ नहीं आई।"}
                     hindi_reply = ai_data.get("hindi_reply", "ठीक है बॉस।")
+                    action = ai_data.get("action", "chat")
+                    target_name = ai_data.get("target_name", "").lower()
+                    amount = int(ai_data.get("amount", 0))
                 else:
                     hindi_reply = "ध्रुव का दिमाग़ फिलहाल काम नहीं कर रहा।"
             except Exception as e2:
                 hindi_reply = f"ध्रुव को खाँसी आ गई: {e2}"
 
+        # ---- एक्शन के अनुसार अतिरिक्त जानकारी जोड़ें ----
+        u = get_user(message.from_user)
+        if action == "check_balance":
+            hist = "\n".join(u.get('history', [])) if u.get('history') else "कोई क्रिमिनल रिकॉर्ड नहीं है।"
+            hindi_reply += f"\n\n💰 बैलेंस: {u['bal']} Rs\n🔪 किल्स: {u.get('kills', 0)}\n📜 रिकॉर्ड: {hist}"
+
+        bot.delete_message(message.chat.id, wait_msg.message_id)
+
+        # ---- अंतिम जवाब भेजें (वॉइस या टेक्स्ट) ----
+        if is_voice:
+            res_tts = requests.post(f"{HF_API}/tts", data={"text": hindi_reply, "rate": "+0%"})
+            if res_tts.status_code == 200:
+                audio_bytes = BytesIO(res_tts.content)
+                audio_bytes.name = "dhruva.ogg"
+                bot.send_voice(message.chat.id, audio_bytes, caption=hindi_reply)
+            else:
+                bot.reply_to(message, hindi_reply)
+        else:
+            bot.reply_to(message, hindi_reply)
+
+    except Exception as e:
+        print(f"❌ Error in Dhruva monitor: {e}")
+        bot.reply_to(message, "❌ ध्रुव को खाँसी आ गई, बाद में कोशिश करो।")
         bot.delete_message(message.chat.id, wait_msg.message_id)
 
         # ... (बाकी का कोड वैसे ही रहने दें)
