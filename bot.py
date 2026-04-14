@@ -1064,6 +1064,49 @@ def nuke_database(message):
     except Exception as e:
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
+# ================== 🎙️ नया TTS कमांड (Indri TTS via HF Space) ==================
+@bot.message_handler(commands=['tts'])
+def tts_command(message):
+    # 1. टेक्स्ट कैसे प्राप्त करें
+    if message.reply_to_message:
+        # अगर किसी मैसेज पर रिप्लाई करके /tts लिखा है तो उस मैसेज का टेक्स्ट लें
+        if message.reply_to_message.text:
+            text = message.reply_to_message.text
+        elif message.reply_to_message.caption:
+            text = message.reply_to_message.caption
+        else:
+            return bot.reply_to(message, "❌ रिप्लाई किए गए मैसेज में कोई टेक्स्ट नहीं है!")
+    else:
+        # वरना कमांड के बाद का टेक्स्ट लें
+        parts = message.text.split(' ', 1)
+        if len(parts) < 2:
+            return bot.reply_to(message, "🎙️ **उपयोग:**\n`/tts <टेक्स्ट>`\nया किसी मैसेज पर रिप्लाई करके `/tts` लिखें", parse_mode='Markdown')
+        text = parts[1].strip()
+    
+    if not text:
+        return bot.reply_to(message, "❌ बोलने के लिए कुछ टेक्स्ट तो दो!")
+
+    # 2. यूजर को सूचित करें
+    wait_msg = bot.reply_to(message, "🎤 *आपका टेक्स्ट वॉइस में बदला जा रहा है...*", parse_mode='Markdown')
+    bot.send_chat_action(message.chat.id, 'record_audio')
+    
+    try:
+        # 3. HF Space API को कॉल करें
+        api_url = "https://singhp08-tts.hf.space/tts"   # <-- आपके स्पेस का URL
+        response = requests.post(api_url, data={'text': text}, timeout=30)
+        
+        if response.status_code == 200:
+            # 4. ऑडियो को Telegram पर भेजें
+            audio_bytes = BytesIO(response.content)
+            audio_bytes.name = "voice.wav"
+            bot.send_voice(message.chat.id, audio_bytes, caption=f"🎙️ *{text[:100]}*", parse_mode='Markdown')
+            bot.delete_message(message.chat.id, wait_msg.message_id)
+        else:
+            bot.edit_message_text(f"❌ TTS API से एरर: {response.status_code}\n{response.text}", message.chat.id, wait_msg.message_id)
+            
+    except Exception as e:
+        bot.edit_message_text(f"❌ कनेक्शन एरर: {e}", message.chat.id, wait_msg.message_id)
+
 @bot.message_handler(commands=['math'])
 def math_game(message):
     chat_id = message.chat.id
