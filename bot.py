@@ -1065,11 +1065,14 @@ def nuke_database(message):
         bot.edit_message_text(f"❌ Error: {e}", message.chat.id, wait_msg.message_id)
 
 # ================== 🎙️ नया TTS कमांड (Indri TTS via HF Space) ==================
+import time
+import requests
+# ... बाकी सभी ज़रूरी imports ...
+
 @bot.message_handler(commands=['tts'])
-def tts_command(message):
-    # 1. टेक्स्ट कैसे प्राप्त करें
+def tts_command_with_retry(message):
+    # --- टेक्स्ट निकालने का वही कोड ---
     if message.reply_to_message:
-        # अगर किसी मैसेज पर रिप्लाई करके /tts लिखा है तो उस मैसेज का टेक्स्ट लें
         if message.reply_to_message.text:
             text = message.reply_to_message.text
         elif message.reply_to_message.caption:
@@ -1077,35 +1080,67 @@ def tts_command(message):
         else:
             return bot.reply_to(message, "❌ रिप्लाई किए गए मैसेज में कोई टेक्स्ट नहीं है!")
     else:
-        # वरना कमांड के बाद का टेक्स्ट लें
         parts = message.text.split(' ', 1)
         if len(parts) < 2:
             return bot.reply_to(message, "🎙️ **उपयोग:**\n`/tts <टेक्स्ट>`\nया किसी मैसेज पर रिप्लाई करके `/tts` लिखें", parse_mode='Markdown')
         text = parts[1].strip()
-    
     if not text:
         return bot.reply_to(message, "❌ बोलने के लिए कुछ टेक्स्ट तो दो!")
 
-    # 2. यूजर को सूचित करें
-    wait_msg = bot.reply_to(message, "🎤 *आपका टेक्स्ट वॉइस में बदला जा रहा है...*", parse_mode='Markdown')
+    wait_msg = bot.reply_to(message, "🎤 *बुलबुल आवाज़ बना रही है...*", parse_mode='Markdown')
     bot.send_chat_action(message.chat.id, 'record_audio')
     
-    try:
-        # 3. HF Space API को कॉल करें
-        api_url = "https://singhp08-tts.hf.space/tts"   # <-- आपके स्पेस का URL
-        response = requests.post(api_url, data={'text': text}, timeout=300)
-        
-        if response.status_code == 200:
-            # 4. ऑडियो को Telegram पर भेजें
-            audio_bytes = BytesIO(response.content)
-            audio_bytes.name = "voice.wav"
-            bot.send_voice(message.chat.id, audio_bytes, caption=f"🎙️ *{text[:100]}*", parse_mode='Markdown')
-            bot.delete_message(message.chat.id, wait_msg.message_id)
-        else:
-            bot.edit_message_text(f"❌ TTS API से एरर: {response.status_code}\n{response.text}", message.chat.id, wait_msg.message_id)
+    # --- API कॉल के लिए सेटिंग्स ---
+    url = "https://api.sarvam.ai/text-to-speech"
+    headers = {
+        "api-subscription-key": os.environ.get('S1'), # सिर्फ एक कुंजी का उपयोग करें
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "inputs": [text],
+        "target_language_code": "hi-IN",
+        "speaker": "meera",
+        "model": "bulbul:v1"
+    }
+    
+    # --- रिट्री लॉजिक (थोड़ा रुककर फिर से कोशिश करना) ---
+    max_retries = 3
+    retry_delay = 10  # 10 सेकंड
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
             
-    except Exception as e:
-        bot.edit_message_text(f"❌ कनेक्शन एरर: {e}", message.chat.id, wait_msg.message_id)
+            if response.status_code == 200:
+                audio_url = response.json()['audios'][0]
+                audio_data = requests.get(audio_url).content
+                audio_bytes = BytesIO(audio_data)
+                audio_bytes.name = "voice.wav"
+                bot.send_voice(message.chat.id, audio_bytes, caption=f"🎙️ {text[:100]}")
+                bot.delete_message(message.chat.id, wait_msg.message_id)
+                return  # सफलता! लूप से बाहर निकल जाएं
+            
+            elif response.status_code == 429:
+                # रेट लिमिट खत्म हो गई है, थोड़ा रुकें और फिर कोशिश करें
+                if attempt < max_retries - 1:
+                    print(f"⚠️ सर्वम API रेट लिमिट हिट। {retry_delay} सेकंड में पुनः प्रयास {attempt+2}/{max_retries}...")
+                    time.sleep(retry_delay)
+                    continue
+                else:
+                    bot.edit_message_text(f"❌ सर्वम API: अभी बहुत भीड़ है। थोड़ी देर बाद कोशिश करें।", message.chat.id, wait_msg.message_id)
+                    return
+            else:
+                bot.edit_message_text(f"❌ सर्वम API एरर: {response.status_code}", message.chat.id, wait_msg.message_id)
+                return
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"⚠️ कनेक्शन एरर: {e}। पुनः प्रयास {attempt+2}/{max_retries}...")
+                time.sleep(retry_delay)
+                continue
+            else:
+                bot.edit_message_text(f"❌ कनेक्शन एरर: {e}", message.chat.id, wait_msg.message_id)
+                return
 
 @bot.message_handler(commands=['math'])
 def math_game(message):
