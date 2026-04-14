@@ -26,6 +26,28 @@ import io
 from PIL import Image
 from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
+# ... आपके सभी पुराने imports ...
+from pyrogram import Client
+from pytgcalls import PyTgCalls, StreamType
+from pytgcalls.types import AudioPiped
+import yt_dlp
+
+# --- असिस्टेंट क्लाइंट (Pyrogram) ---
+ASSISTANT = Client(
+    name="DaimondAssistant",
+    api_id=int(os.environ.get("API_ID")),
+    api_hash=os.environ.get("API_HASH"),
+    session_string=os.environ.get("SESSION_STRING")
+)
+
+# --- PyTgCalls क्लाइंट (वॉइस चैट के लिए) ---
+CALLS = PyTgCalls(ASSISTANT)
+
+# --- बॉट शुरू होते ही इसे चालू करें ---
+print("⚡ असिस्टेंट और कॉल्स शुरू हो रहे हैं...")
+ASSISTANT.start()
+CALLS.start()
+print("✅ असिस्टेंट और कॉल्स तैयार हैं!")
 
 HF_API_URL = "https://singhp08-rvc-models.hf.space/convert" # Teri Space ka API Link
 HF_TTS_API = "https://singhp08-rvc-models.hf.space/tts"
@@ -143,6 +165,23 @@ pending_says = {}
 pending_papers = {}
 # Isse bot.py ke upar define karein
 game_sessions = {}
+# ... आपकी बाकी की फाइल में, जहाँ MongoDB सेटअप है ...
+groups_db = db["music_groups"] # यह नया कलेक्शन है
+
+def get_group_settings(chat_id):
+    settings = groups_db.find_one({"_id": chat_id})
+    if not settings:
+        settings = {
+            "_id": chat_id,
+            "queue": [],
+            "playlist": [],
+            "vip_users": [],
+            "current_track": None,
+            "added_by": None,
+            "loop": False
+        }
+        groups_db.insert_one(settings)
+    return settings
 
 
 # 🎨 9 VIP INK COLORS
@@ -609,6 +648,38 @@ def start_cmd(message):
         text = f"👑 **Daimond Batch mein swagat hai {message.from_user.first_name}!**\n\nAap toh pehle se hamare khaas aadmi ho. Game khelo aur balance badhao!\n(Apne dosto ko lana ho toh neeche wala button bhejo aur khud bhi join ho jao group main 👇)"
         bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
 
+@bot.message_handler(commands=['play'])
+def play_command(message):
+    if len(message.text.split()) < 2 and not message.reply_to_message:
+        return bot.reply_to(message, "❌ कोई गाना या लिंक दो!")
+
+    query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
+    user = get_user(message.from_user)
+    chat_id = message.chat.id
+
+    wait_msg = bot.reply_to(message, f"🔍 '{query}' खोजा जा रहा है...")
+    try:
+        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
+            info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+        track = {
+            'title': info['title'],
+            'url': info['url'],
+            'duration': info['duration'],
+            'webpage_url': info['webpage_url'],
+            'requester': user['name'],
+            'requester_id': message.from_user.id
+        }
+        settings = get_group_settings(chat_id)
+        settings['queue'].append(track)
+        groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
+        
+        if not settings.get('current_track'):
+            play_next_in_queue(chat_id)
+        
+        bot.edit_message_text(f"✅ **{track['title']}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
+    except Exception as e:
+        bot.edit_message_text(f"❌ गाना नहीं मिला या कोई एरर: {e}", chat_id, wait_msg.message_id)
+
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -620,6 +691,19 @@ def gift_cmd(message):
         bot.reply_to(message, f"🎁 **GIFT SENT!**\nAdmin ne {t_obj.first_name} ko {amt} Rs free mein diye hain! 🎉")
     except: 
         bot.reply_to(message, "❌ Sahi Format: /gift 5000")
+
+@bot.message_handler(commands=['auth'])
+def make_vip(message):
+    if not message.reply_to_message: return bot.reply_to(message, "किसी यूजर के मैसेज पर रिप्लाई करके /auth करें।")
+    chat_id, admin_id, target_user = message.chat.id, message.from_user.id, message.reply_to_message.from_user
+    member = bot.get_chat_member(chat_id, admin_id)
+    if member.status not in ['administrator', 'creator']: return bot.reply_to(message, "❌ सिर्फ एडमिन ही VIP बना सकते हैं।")
+    settings = get_group_settings(chat_id)
+    if target_user.id not in settings['vip_users']:
+        settings['vip_users'].append(target_user.id)
+        groups_db.update_one({"_id": chat_id}, {"$set": {"vip_users": settings['vip_users']}})
+        bot.reply_to(message, f"✅ {target_user.first_name} अब VIP है!")
+    else: bot.reply_to(message, "यह यूजर पहले से VIP है।")
 
 @bot.message_handler(commands=['toprank', 'top'])
 def top_richest(message):
@@ -1968,6 +2052,63 @@ def repay_cmd(message):
     u['loan']['active'] = False
     bot.reply_to(message, "✅ Udhar chukta hua!")
 
+def play_next_in_queue(chat_id):
+    settings = get_group_settings(chat_id)
+    if not settings['queue']:
+        # CALLS.leave_call(chat_id) # कतार खाली होने पर बाद में छोड़ें
+        groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": None}})
+        return
+
+    track = settings['queue'].pop(0)
+    settings['current_track'] = track
+    settings['added_by'] = track['requester_id']
+    groups_db.update_one({"_id": chat_id}, {
+        "$set": {"queue": settings['queue'], "current_track": track, "added_by": track['requester_id']}
+    })
+
+    try:
+        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
+            info = ydl.extract_info(track['webpage_url'], download=False)
+            stream_url = info['url']
+        CALLS.join_group_call(chat_id, AudioPiped(stream_url), stream_type=StreamType().pulse_stream)
+        send_now_playing(chat_id, track)
+    except Exception as e:
+        print(f"गाना चलाने में एरर: {e}")
+        play_next_in_queue(chat_id)
+
+def send_now_playing(chat_id, track):
+    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+    markup = InlineKeyboardMarkup(row_width=4)
+    markup.add(
+        InlineKeyboardButton("⏸️", callback_data="pause"),
+        InlineKeyboardButton("▶️", callback_data="resume"),
+        InlineKeyboardButton("⏭️", callback_data="skip"),
+        InlineKeyboardButton("⏹️", callback_data="stop")
+    )
+    caption = f"🎶 **अभी चल रहा है:**\n[{track['title']}]({track['webpage_url']})\n👤 अनुरोध: {track['requester']}"
+    bot.send_photo(chat_id, track.get('thumbnail'), caption=caption, reply_markup=markup, parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: call.data in ["pause", "resume", "skip", "stop"])
+def music_controls(call):
+    chat_id = call.message.chat.id
+    user_id = call.from_user.id
+    settings = get_group_settings(chat_id)
+    current = settings.get('current_track')
+    if not current: return bot.answer_callback_query(call.id, "कोई गाना नहीं चल रहा!")
+
+    is_bot_admin_track = (settings.get('added_by') == ADMIN_ID)
+    is_vip = user_id in settings.get('vip_users', [])
+    is_admin = user_id == ADMIN_ID or user_id in [admin.user.id for admin in bot.get_chat_administrators(chat_id)]
+
+    if is_bot_admin_track and user_id != ADMIN_ID:
+        return bot.answer_callback_query(call.id, "❌ यह गाना बॉस का है! सिर्फ बॉस ही इसे रोक सकता है।", show_alert=True)
+    if not is_admin and not is_vip:
+        return bot.answer_callback_query(call.id, "❌ आपके पास परमीशन नहीं है।", show_alert=True)
+
+    if call.data == "pause": CALLS.pause_stream(chat_id); bot.answer_callback_query(call.id, "गाना रोक दिया गया।")
+    elif call.data == "resume": CALLS.resume_stream(chat_id); bot.answer_callback_query(call.id, "गाना फिर से चालू।")
+    elif call.data == "skip": CALLS.leave_call(chat_id); bot.answer_callback_query(call.id, "गाना छोड़ा गया।")
+
 import re
 
 # ==========================================
@@ -2204,6 +2345,8 @@ def deactivate_cmd(message):
         save_data()
         bot.reply_to(message, f"🚫 **Command Disabled!**\nBoss, ab koi bhi `{cmd}` use nahi kar payega.")
     except: bot.reply_to(message, "❌ Sahi format: /deactivate rob ya /deactivate ai")
+
+
 
 @bot.message_handler(commands=['activate'])
 def activate_cmd(message):
