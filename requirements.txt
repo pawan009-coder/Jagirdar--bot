@@ -9,3 +9,7 @@ pytz
 feedparser
 deep-translator
 Pillow
+pyrogram
+pytgcalls
+yt-dlp
+# आपकी बाकी की सभी लाइब्रेरी (flask, gunicorn, pymongo, आदि) जस की तस रहेंगी।
