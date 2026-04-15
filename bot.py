@@ -28,14 +28,8 @@ from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
-# इसे हटा दें (या कमेंट कर दें):
-# from py_tgcalls import PyTgCalls, StreamType
-# from py_tgcalls.types import AudioPiped
-
-# इससे बदलें:
-from pytgcalls import Client as PyTgCalls
-from pytgcalls import StreamType
-from pytgcalls.types import AudioPiped
+from pytgcalls import PyTgCalls, StreamType
+from pytgcalls.types import MediaStream
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
@@ -2061,7 +2055,6 @@ def repay_cmd(message):
 def play_next_in_queue(chat_id):
     settings = get_group_settings(chat_id)
     if not settings['queue']:
-        # CALLS.leave_call(chat_id) # कतार खाली होने पर बाद में छोड़ें
         groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": None}})
         return
 
@@ -2076,7 +2069,13 @@ def play_next_in_queue(chat_id):
         with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
-        CALLS.join_group_call(chat_id, AudioPiped(stream_url), stream_type=StreamType().pulse_stream)
+        
+        # नया तरीका: MediaStream का उपयोग
+        CALLS.join_group_call(
+            chat_id,
+            MediaStream(stream_url),
+            stream_type=StreamType().live_stream
+        )
         send_now_playing(chat_id, track)
     except Exception as e:
         print(f"गाना चलाने में एरर: {e}")
