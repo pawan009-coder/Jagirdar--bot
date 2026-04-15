@@ -28,8 +28,8 @@ from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
-from pytgcalls import PyTgCalls, StreamType
-from pytgcalls.types import MediaStream
+from pytgcalls import PyTgCalls
+from pytgcalls.types import MediaStream, StreamType
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
@@ -2070,11 +2070,10 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        # नया तरीका: MediaStream का उपयोग
         CALLS.join_group_call(
             chat_id,
             MediaStream(stream_url),
-            stream_type=StreamType().live_stream
+            stream_type=StreamType().live
         )
         send_now_playing(chat_id, track)
     except Exception as e:
