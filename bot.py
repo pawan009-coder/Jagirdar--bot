@@ -28,20 +28,19 @@ from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
-# पुराना (गलत):
-# from pytgcalls import Client as PyTgCalls
-# from pytgcalls import StreamType
-# from pytgcalls.types import AudioPiped
+# इसे हटा दें (या कमेंट कर दें):
+# from py_tgcalls import PyTgCalls, StreamType
+# from py_tgcalls.types import AudioPiped
 
-# नया (सही):
-from py_tgcalls import PyTgCalls
-from py_tgcalls import StreamType
-from py_tgcalls.types import AudioPiped
+# इससे बदलें:
+from pytgcalls import Client as PyTgCalls
+from pytgcalls import StreamType
+from pytgcalls.types import AudioPiped
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
-    name="DaimondAssistant",
+    name="RAJPUROHIT",
     api_id=int(os.environ.get("API_ID")),
     api_hash=os.environ.get("API_HASH"),
     session_string=os.environ.get("SESSION_STRING")
