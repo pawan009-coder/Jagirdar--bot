@@ -1,7 +1,9 @@
 pyTelegramBotAPI
-requests
+pyrogram==2.0.106
+py-tgcalls
+yt-dlp
+tgcrypto
 flask
-sherlock-project
 gunicorn
 pymongo
 apscheduler
@@ -9,9 +11,5 @@ pytz
 feedparser
 deep-translator
 Pillow
-pyrogram==2.0.106
-pytgcalls==3.0.0.dev6
-tgcrypto
-yt-dlp
-#yt-dlp
-# आपकी बाकी की सभी लाइब्रेरी (flask, gunicorn, pymongo, आदि) जस की तस रहेंगी।
+requests
+numpy==1.26.4
