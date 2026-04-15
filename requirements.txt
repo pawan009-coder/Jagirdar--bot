@@ -1,6 +1,6 @@
 pyTelegramBotAPI
 pyrogram==2.0.106
-py-tgcalls
+pytgcalls
 yt-dlp
 tgcrypto
 flask
