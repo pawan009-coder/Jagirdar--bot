@@ -28,9 +28,15 @@ from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
-from pytgcalls import Client as PyTgCalls
-from pytgcalls import StreamType
-from pytgcalls.types import AudioPiped
+# पुराना (गलत):
+# from pytgcalls import Client as PyTgCalls
+# from pytgcalls import StreamType
+# from pytgcalls.types import AudioPiped
+
+# नया (सही):
+from py_tgcalls import PyTgCalls
+from py_tgcalls import StreamType
+from py_tgcalls.types import AudioPiped
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
