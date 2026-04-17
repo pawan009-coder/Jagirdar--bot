@@ -29,7 +29,7 @@ from io import BytesIO
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types import MediaStream, StreamType
+from pytgcalls.types import MediaStream
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
@@ -2070,10 +2070,10 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
+        # MediaStream का उपयोग बिना stream_type के
         CALLS.join_group_call(
             chat_id,
-            MediaStream(stream_url),
-            stream_type=StreamType().live
+            MediaStream(stream_url)
         )
         send_now_playing(chat_id, track)
     except Exception as e:
