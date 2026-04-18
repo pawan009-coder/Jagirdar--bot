@@ -29,7 +29,7 @@ from io import BytesIO
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types import AudioPiped
+from pytgcalls.types import MediaStream
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
@@ -2070,9 +2070,10 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
+        # ✅ नया और सही तरीका: MediaStream का उपयोग (AudioPiped नहीं)
         CALLS.join_group_call(
             chat_id,
-            AudioPiped(stream_url)
+            MediaStream(stream_url)
         )
         send_now_playing(chat_id, track)
     except Exception as e:
