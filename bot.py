@@ -719,7 +719,6 @@ def play_command(message):
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
 # ... बाकी कोड ...
-# ... बाकी कोड ...
         
         bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
         
@@ -2116,7 +2115,7 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        # ✅ v3.x का सही तरीका: play() और MediaStream
+        # ✅ pytgcalls v3.x का सही तरीका: play() और MediaStream
         CALLS.play(
             chat_id,
             MediaStream(stream_url)
