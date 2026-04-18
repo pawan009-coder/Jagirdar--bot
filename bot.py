@@ -29,7 +29,7 @@ from io import BytesIO
 # ... आपके सभी पुराने imports ...
 from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types import AudioPiped
+from pytgcalls.types.input_stream import AudioPiped
 import yt_dlp
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
