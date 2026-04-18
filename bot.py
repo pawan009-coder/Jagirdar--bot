@@ -30,7 +30,7 @@ from io import BytesIO
 # इम्पोर्ट स्टेटमेंट
 from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_stream import AudioPiped
+from pytgcalls.types import AudioPiped
 import yt_dlp
 
 
