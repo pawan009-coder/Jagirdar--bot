@@ -1,4 +1,8 @@
 pyTelegramBotAPI
+pyrogram==2.0.106
+TgCrypto
+pytgcalls>=3.4.0
+yt-dlp
 flask
 gunicorn
 pymongo
@@ -9,7 +13,3 @@ deep-translator
 Pillow
 requests
 numpy==1.26.4
-pyrogram==2.0.106
-py-tgcalls==2.0.0
-yt-dlp
-tgcrypto
