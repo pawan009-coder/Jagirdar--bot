@@ -10,6 +10,6 @@ Pillow
 requests
 numpy==1.26.4
 pyrogram==2.0.106
-py-tgcalls==2.2.11
+pytgcalls==2.2.1
 yt-dlp
 tgcrypto
