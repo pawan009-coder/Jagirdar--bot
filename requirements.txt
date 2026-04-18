@@ -9,7 +9,7 @@ deep-translator
 Pillow
 requests
 numpy==1.26.4
-pyrogram>=2.3.0
-py-tgcalls
+pyrogram==2.3.6
+pytgcalls==3.4.0
 yt-dlp
 tgcrypto
