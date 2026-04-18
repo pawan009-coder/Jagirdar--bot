@@ -719,6 +719,7 @@ def play_command(message):
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
 # ... बाकी कोड ...
+# ... बाकी कोड ...
         
         bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
         
