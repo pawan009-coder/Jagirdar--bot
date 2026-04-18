@@ -711,13 +711,14 @@ def play_command(message):
         settings['queue'].append(track)
         groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
         
-        # अगर कोई गाना नहीं चल रहा, तो चलाएं
+        # ... बाकी कोड ...
         if not settings.get('current_track'):
-            asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, stream_url), LOOP)
+            CALLS.play(chat_id, MediaStream(stream_url))
             settings['current_track'] = track
             settings['added_by'] = track['requester_id']
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
+# ... बाकी कोड ...
         
         bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
         
@@ -2109,9 +2110,20 @@ def play_next_in_queue(chat_id):
         "$set": {"queue": settings['queue'], "current_track": track, "added_by": track['requester_id']}
     })
 
-    # अगला गाना चलाएं
-    asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, track['url']), LOOP)
-    send_now_playing(chat_id, track)
+    try:
+        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
+            info = ydl.extract_info(track['webpage_url'], download=False)
+            stream_url = info['url']
+        
+        # ✅ v3.x का सही तरीका: play() और MediaStream
+        CALLS.play(
+            chat_id,
+            MediaStream(stream_url)
+        )
+        send_now_playing(chat_id, track)
+    except Exception as e:
+        print(f"गाना चलाने में एरर: {e}")
+        play_next_in_queue(chat_id)
 
 def send_now_playing(chat_id, track):
     from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
