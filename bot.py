@@ -27,13 +27,14 @@ from PIL import Image
 from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
 # ... आपके सभी पुराने imports ...
-# 1. इम्पोर्ट स्टेटमेंट
+# इम्पोर्ट स्टेटमेंट
 from pyrogram import Client
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_stream import AudioPiped
-
-
+from pytgcalls.types import AudioPiped
+from pytgcalls import StreamType
 import yt_dlp
+
+
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
@@ -2073,8 +2074,11 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        # ✅ नया और सही तरीका: MediaStream का उपयोग (AudioPiped नहीं)
-        CALLS.join_group_call(chat_id, AudioPiped(stream_url))
+        CALLS.join_group_call(
+            chat_id,
+            AudioPiped(stream_url),
+            stream_type=StreamType().pulse_stream
+        )
         send_now_playing(chat_id, track)
     except Exception as e:
         print(f"गाना चलाने में एरर: {e}")
