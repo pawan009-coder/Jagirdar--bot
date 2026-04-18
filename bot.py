@@ -2075,15 +2075,14 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        
-    CALLS.join_group_call(
-        chat_id,
-        AudioPiped(stream_url),
-        stream_type=StreamType().pulse_stream
-    )
+        CALLS.join_group_call(
+            chat_id,
+            AudioPiped(stream_url)
+        )
         send_now_playing(chat_id, track)
     except Exception as e:
         print(f"गाना चलाने में एरर: {e}")
+        # अगला गाना चलाने की कोशिश करें
         play_next_in_queue(chat_id)
 
 def send_now_playing(chat_id, track):
