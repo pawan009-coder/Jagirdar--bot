@@ -26,16 +26,12 @@ import io
 from PIL import Image
 from io import BytesIO
 # Baki purane imports rehne do (telebot, os, etc.)
-# ... आपके सभी पुराने imports ...
-# इम्पोर्ट स्टेटमेंट
+# ================== म्यूजिक स्ट्रीमिंग इम्पोर्ट्स ==================
 import asyncio
 import yt_dlp
-from pyrogram import Client
-from pytgcalls.client import PyTgCalls
-from pytgcalls.types import MediaStream
-
-
-
+from pyrogram import Client, idle
+from pytgcalls import GroupCallFactory
+from pytgcalls.types import MediaStream  # (वैकल्पिक, यदि ज़रूरत पड़े)
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
@@ -45,8 +41,9 @@ ASSISTANT = Client(
     session_string=os.environ.get("SESSION_STRING")
 )
 
-# --- PyTgCalls क्लाइंट (वॉइस चैट के लिए) ---
-CALLS = PyTgCalls(ASSISTANT)
+# --- GroupCallFactory (PyTgCalls v3.0.0.dev24 का सही तरीका) ---
+group_call_factory = GroupCallFactory(ASSISTANT)
+GROUP_CALL = group_call_factory.get_group_call()
 
 # --- ग्लोबल इवेंट लूप (async हैंडलिंग के लिए) ---
 LOOP = asyncio.new_event_loop()
@@ -55,12 +52,9 @@ asyncio.set_event_loop(LOOP)
 # असिस्टेंट और कॉल्स को शुरू करें
 async def start_clients():
     await ASSISTANT.start()
-    await CALLS.start()
-    print("✅ असिस्टेंट और PyTgCalls चालू हो गए!")
+    print("✅ असिस्टेंट और GroupCall तैयार हैं!")
 
 LOOP.run_until_complete(start_clients())
-
-
 
 # --- बॉट शुरू होते ही इसे चालू करें ---
 print("⚡ असिस्टेंट और कॉल्स शुरू हो रहे हैं...")
@@ -537,12 +531,10 @@ def get_user(user_obj):
     
 # ================== यूट्यूब ऑडियो स्ट्रीमिंग ==================
 async def play_youtube_audio(chat_id: int, stream_url: str):
-    """दिए गए स्ट्रीम URL को वॉइस चैट में बजाएं।"""
+    """दिए गए स्ट्रीम URL को वॉयस चैट में बजाएं।"""
     try:
-        await CALLS.play(
-            chat_id,
-            MediaStream(stream_url)
-        )
+        await GROUP_CALL.join(chat_id)
+        await GROUP_CALL.start_audio(stream_url)
         print(f"🎵 गाना शुरू: {chat_id}")
     except Exception as e:
         print(f"❌ गाना चलाने में एरर: {e}")   
@@ -684,7 +676,6 @@ def play_command(message):
     chat_id = message.chat.id
     user = get_user(message.from_user)
     
-    # टेक्स्ट या रिप्लाई से क्वेरी लें
     if len(message.text.split()) < 2 and not message.reply_to_message:
         return bot.reply_to(message, "❌ कोई गाना या लिंक दो!")
     query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
@@ -692,14 +683,17 @@ def play_command(message):
     wait_msg = bot.reply_to(message, f"🔍 '{query}' खोजा जा रहा है...")
     
     try:
-        # yt-dlp से ऑडियो स्ट्रीम URL प्राप्त करें
         with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
+            
+            # 🕒 60 मिनट की सीमा (3600 सेकंड)
+            if info.get('duration', 0) > 3600:
+                return bot.edit_message_text("❌ 60 मिनट से लंबे वीडियो नहीं चलाए जा सकते।", chat_id, wait_msg.message_id)
+            
             stream_url = info['url']
             title = info['title']
             webpage_url = info['webpage_url']
         
-        # ट्रैक जानकारी सेव करें (MongoDB)
         settings = get_group_settings(chat_id)
         track = {
             'title': title,
@@ -711,20 +705,18 @@ def play_command(message):
         settings['queue'].append(track)
         groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
         
-        # ... बाकी कोड ...
         if not settings.get('current_track'):
-            CALLS.play(chat_id, MediaStream(stream_url))
+            asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, stream_url), LOOP)
             settings['current_track'] = track
             settings['added_by'] = track['requester_id']
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
-# ... बाकी कोड ...
         
         bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
         
     except Exception as e:
         bot.edit_message_text(f"❌ गाना नहीं मिला या कोई एरर: {e}", chat_id, wait_msg.message_id)
-
+        
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
     if message.from_user.id != ADMIN_ID: return
@@ -2110,20 +2102,8 @@ def play_next_in_queue(chat_id):
         "$set": {"queue": settings['queue'], "current_track": track, "added_by": track['requester_id']}
     })
 
-    try:
-        with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
-            info = ydl.extract_info(track['webpage_url'], download=False)
-            stream_url = info['url']
-        
-        # ✅ pytgcalls v3.x का सही तरीका: play() और MediaStream
-        CALLS.play(
-            chat_id,
-            MediaStream(stream_url)
-        )
-        send_now_playing(chat_id, track)
-    except Exception as e:
-        print(f"गाना चलाने में एरर: {e}")
-        play_next_in_queue(chat_id)
+    asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, track['url']), LOOP)
+    send_now_playing(chat_id, track)
 
 def send_now_playing(chat_id, track):
     from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -2146,7 +2126,6 @@ def music_controls(call):
     if not current:
         return bot.answer_callback_query(call.id, "कोई गाना नहीं चल रहा!")
 
-    # परमीशन चेक (VIP, एडमिन, बॉस)
     is_bot_admin_track = (settings.get('added_by') == ADMIN_ID)
     is_vip = user_id in settings.get('vip_users', [])
     is_admin = user_id == ADMIN_ID or user_id in [admin.user.id for admin in bot.get_chat_administrators(chat_id)]
@@ -2157,39 +2136,18 @@ def music_controls(call):
         return bot.answer_callback_query(call.id, "❌ आपके पास परमीशन नहीं है।", show_alert=True)
 
     if call.data == "pause":
-        asyncio.run_coroutine_threadsafe(CALLS.pause(chat_id), LOOP)
+        asyncio.run_coroutine_threadsafe(GROUP_CALL.pause_audio(), LOOP)
         bot.answer_callback_query(call.id, "गाना रोक दिया गया।")
     elif call.data == "resume":
-        asyncio.run_coroutine_threadsafe(CALLS.resume(chat_id), LOOP)
+        asyncio.run_coroutine_threadsafe(GROUP_CALL.resume_audio(), LOOP)
         bot.answer_callback_query(call.id, "गाना फिर से चालू।")
     elif call.data == "skip":
-        asyncio.run_coroutine_threadsafe(CALLS.stop(chat_id), LOOP)
+        asyncio.run_coroutine_threadsafe(GROUP_CALL.stop_audio(), LOOP)
         play_next_in_queue(chat_id)
         bot.answer_callback_query(call.id, "गाना छोड़ा गया।")
     elif call.data == "stop":
-        asyncio.run_coroutine_threadsafe(CALLS.stop(chat_id), LOOP)
+        asyncio.run_coroutine_threadsafe(GROUP_CALL.stop_audio(), LOOP)
         bot.answer_callback_query(call.id, "स्ट्रीम बंद कर दी गई।")
-
-@bot.callback_query_handler(func=lambda call: call.data in ["pause", "resume", "skip", "stop"])
-def music_controls(call):
-    chat_id = call.message.chat.id
-    user_id = call.from_user.id
-    settings = get_group_settings(chat_id)
-    current = settings.get('current_track')
-    if not current: return bot.answer_callback_query(call.id, "कोई गाना नहीं चल रहा!")
-
-    is_bot_admin_track = (settings.get('added_by') == ADMIN_ID)
-    is_vip = user_id in settings.get('vip_users', [])
-    is_admin = user_id == ADMIN_ID or user_id in [admin.user.id for admin in bot.get_chat_administrators(chat_id)]
-
-    if is_bot_admin_track and user_id != ADMIN_ID:
-        return bot.answer_callback_query(call.id, "❌ यह गाना बॉस का है! सिर्फ बॉस ही इसे रोक सकता है।", show_alert=True)
-    if not is_admin and not is_vip:
-        return bot.answer_callback_query(call.id, "❌ आपके पास परमीशन नहीं है।", show_alert=True)
-
-    if call.data == "pause": CALLS.pause_stream(chat_id); bot.answer_callback_query(call.id, "गाना रोक दिया गया।")
-    elif call.data == "resume": CALLS.resume_stream(chat_id); bot.answer_callback_query(call.id, "गाना फिर से चालू।")
-    elif call.data == "skip": CALLS.leave_call(chat_id); bot.answer_callback_query(call.id, "गाना छोड़ा गया।")
 
 import re
 
