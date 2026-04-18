@@ -1,7 +1,7 @@
 pyTelegramBotAPI
-pyrogram==2.0.106
+pyrogram
 TgCrypto
-pytgcalls>=3.4.0
+pytgcalls
 yt-dlp
 flask
 gunicorn
