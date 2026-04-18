@@ -2071,10 +2071,7 @@ def play_next_in_queue(chat_id):
             stream_url = info['url']
         
         # ✅ नया और सही तरीका: MediaStream का उपयोग (AudioPiped नहीं)
-        CALLS.join_group_call(
-            chat_id,
-            MediaStream(stream_url)
-        )
+        CALLS.join_group_call(chat_id, MediaStream(stream_url))
         send_now_playing(chat_id, track)
     except Exception as e:
         print(f"गाना चलाने में एरर: {e}")
