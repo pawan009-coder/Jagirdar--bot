@@ -31,7 +31,7 @@ from io import BytesIO
 import asyncio
 import yt_dlp
 from pyrogram import Client
-from pytgcalls import PyTgCalls
+from pytgcalls.client import PyTgCalls
 from pytgcalls.types import MediaStream
 
 
