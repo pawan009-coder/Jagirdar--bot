@@ -29,9 +29,10 @@ from io import BytesIO
 # ... आपके सभी पुराने imports ...
 # इम्पोर्ट स्टेटमेंट
 from pyrogram import Client
-from pytgcalls import PyTgCalls
+from pytgcalls import PyTgCalls, StreamType
 from pytgcalls.types import AudioPiped
-from pytgcalls import StreamType
+
+
 import yt_dlp
 
 
@@ -2074,11 +2075,12 @@ def play_next_in_queue(chat_id):
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        CALLS.join_group_call(
-            chat_id,
-            AudioPiped(stream_url),
-            stream_type=StreamType().pulse_stream
-        )
+        
+    CALLS.join_group_call(
+        chat_id,
+        AudioPiped(stream_url),
+        stream_type=StreamType().pulse_stream
+    )
         send_now_playing(chat_id, track)
     except Exception as e:
         print(f"गाना चलाने में एरर: {e}")
