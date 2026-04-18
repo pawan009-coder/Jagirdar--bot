@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: RAJPUROHIT 
+    name: Jagirdar--bot
     env: python
     buildCommand: |
       apt-get update -y && apt-get install -y ffmpeg
