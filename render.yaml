@@ -1,7 +1,7 @@
 services:
   - type: web
     name: Jagirdar--bot
-    env: python
+    runtime: python-3.11
     buildCommand: |
       apt-get update -y && apt-get install -y ffmpeg
       pip install -r requirements.txt
