@@ -29,23 +29,23 @@ from io import BytesIO
 # ... आपके सभी पुराने imports ...
 # इम्पोर्ट स्टेटमेंट
 from pyrogram import Client
-from pytgcalls import PyTgCalls
+from pytgcalls import Client as PyTgCalls
 from pytgcalls.types.input_stream import AudioPiped
-from pytgcalls.types.input_stream.quality import HighQualityAudio
 import yt_dlp
 
 
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
-    name="RAJPUROHIT",
+    name="DaimondAssistant",
     api_id=int(os.environ.get("API_ID")),
     api_hash=os.environ.get("API_HASH"),
     session_string=os.environ.get("SESSION_STRING")
 )
 
-# --- PyTgCalls क्लाइंट (वॉइस चैट के लिए) ---
 CALLS = PyTgCalls(ASSISTANT)
+
+
 
 # --- बॉट शुरू होते ही इसे चालू करें ---
 print("⚡ असिस्टेंट और कॉल्स शुरू हो रहे हैं...")
@@ -2070,15 +2070,13 @@ def play_next_in_queue(chat_id):
     })
 
     try:
-        # yt-dlp से सीधा ऑडियो स्ट्रीम URL निकालें
         with yt_dlp.YoutubeDL({'format': 'bestaudio', 'quiet': True}) as ydl:
             info = ydl.extract_info(track['webpage_url'], download=False)
             stream_url = info['url']
         
-        # पुष्टिकृत तरीका: AudioPiped + HighQualityAudio
         CALLS.join_group_call(
             chat_id,
-            AudioPiped(stream_url, HighQualityAudio())
+            AudioPiped(stream_url)
         )
         send_now_playing(chat_id, track)
     except Exception as e:
