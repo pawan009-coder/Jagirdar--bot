@@ -1,5 +1,5 @@
-import telebot
 from telebot.types import BotCommand, InlineKeyboardMarkup, InlineKeyboardButton
+import telebot
 import re
 import feedparser
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -31,7 +31,7 @@ import asyncio
 import yt_dlp
 from pyrogram import Client, idle
 from pytgcalls import GroupCallFactory
-#from pytgcalls.types import MediaStream  # (वैकल्पिक, यदि ज़रूरत पड़े)
+from pytgcalls.types import MediaStream  # (वैकल्पिक, यदि ज़रूरत पड़े)
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
@@ -58,8 +58,8 @@ LOOP.run_until_complete(start_clients())
 
 # --- बॉट शुरू होते ही इसे चालू करें ---
 print("⚡ असिस्टेंट और कॉल्स शुरू हो रहे हैं...")
-ASSISTANT.start()
-CALLS.start()
+
+
 print("✅ असिस्टेंट और कॉल्स तैयार हैं!")
 
 HF_API_URL = "https://singhp08-rvc-models.hf.space/convert" # Teri Space ka API Link
