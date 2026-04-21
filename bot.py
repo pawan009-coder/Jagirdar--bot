@@ -31,7 +31,7 @@ import asyncio
 import yt_dlp
 from pyrogram import Client, idle
 from pytgcalls import GroupCallFactory
-from pytgcalls.types import MediaStream  # (वैकल्पिक, यदि ज़रूरत पड़े)
+#from pytgcalls.types import MediaStream  # (वैकल्पिक, यदि ज़रूरत पड़े)
 
 # --- असिस्टेंट क्लाइंट (Pyrogram) ---
 ASSISTANT = Client(
