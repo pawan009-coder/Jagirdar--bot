@@ -1,0 +1,6 @@
+FROM brainicism/bgutil-ytdlp-pot-provider:latest
+
+# Port 4416 expose करें (यह provider का default port है)
+EXPOSE 4416
+
+# Default command को override न करें - image में पहले से सेट है
