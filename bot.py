@@ -675,43 +675,46 @@ def start_cmd(message):
 def play_command(message):
     chat_id = message.chat.id
     user = get_user(message.from_user)
-    
-    # टेक्स्ट या रिप्लाई से क्वेरी लें
+
+    # क्वेरी निकालना
     if len(message.text.split()) < 2 and not message.reply_to_message:
         return bot.reply_to(message, "❌ कोई गाना या लिंक दो!")
     query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
 
     wait_msg = bot.reply_to(message, f"🔍 '{query}' खोजा जा रहा है...")
-    
+
     try:
-        # yt-dlp के लिए सुरक्षित ऑप्शंस (ytc की जरूरत नहीं)
+        # ========== yt-dlp सेटिंग्स ==========
         ydl_opts = {
             'format': 'bestaudio/best',
             'quiet': True,
             'no_warnings': True,
             'extract_flat': False,
-            'force_generic_extractor': False,
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
             },
+            # अगर कुकीज़ फ़ाइल है तो वैकल्पिक
+            'cookiefile': os.environ.get('YOUTUBE_COOKIES') if os.environ.get('YOUTUBE_COOKIES') else None,
         }
+
+        # 🔐 PO TOKEN PROVIDER – ऑटोमैटिक प्लगइन के साथ काम करेगा
+        # (कोई अतिरिक्त कोड नहीं चाहिए, बस प्लगइन इंस्टॉल होना चाहिए)
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
-            
-            # 🕒 60 मिनट की सीमा (3600 सेकंड)
+
+            # 60 मिनट की सीमा
             if info.get('duration', 0) > 3600:
                 return bot.edit_message_text(
                     "❌ 60 मिनट से लंबे वीडियो नहीं चलाए जा सकते।",
                     chat_id, wait_msg.message_id
                 )
-            
+
             stream_url = info['url']
             title = info['title']
             webpage_url = info['webpage_url']
-        
-        # ट्रैक जानकारी MongoDB में सेव करें
+
+        # ----- बाकी का म्यूज़िक लॉजिक (बिल्कुल वही रहेगा) -----
         settings = get_group_settings(chat_id)
         track = {
             'title': title,
@@ -722,17 +725,16 @@ def play_command(message):
         }
         settings['queue'].append(track)
         groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
-        
-        # अगर कोई गाना नहीं चल रहा, तो अभी चलाएँ
+
         if not settings.get('current_track'):
             asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, stream_url), LOOP)
             settings['current_track'] = track
             settings['added_by'] = track['requester_id']
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
-        
+
         bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
-        
+
     except Exception as e:
         bot.edit_message_text(f"❌ गाना नहीं मिला या कोई एरर: {e}", chat_id, wait_msg.message_id)
         
