@@ -686,16 +686,17 @@ def play_command(message):
     try:
         # ========== yt-dlp सेटिंग्स ==========
         ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'no_warnings': True,
-            'extract_flat': False,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            },
-            # अगर कुकीज़ फ़ाइल है तो वैकल्पिक
-            'cookiefile': os.environ.get('YOUTUBE_COOKIES') if os.environ.get('YOUTUBE_COOKIES') else None,
-        }
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+    'extract_flat': False,
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36',
+    },
+    'extractor_args': {'youtube': {'player_client': ['android', 'web']}},
+    # यदि आपके पास कुकी फ़ाइल है तो उसे भी शामिल करें (वैकल्पिक)
+    'cookiefile': os.environ.get('YOUTUBE_COOKIES') if os.environ.get('YOUTUBE_COOKIES') else None,
+}
 
         # 🔐 PO TOKEN PROVIDER – ऑटोमैटिक प्लगइन के साथ काम करेगा
         # (कोई अतिरिक्त कोड नहीं चाहिए, बस प्लगइन इंस्टॉल होना चाहिए)
