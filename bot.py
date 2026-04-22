@@ -684,13 +684,24 @@ def play_command(message):
     wait_msg = bot.reply_to(message, f"🔍 '{query}' खोजा जा रहा है...")
     
     try:
-        import ytc  # स्वचालित YouTube कुकीज़ के लिए
+        # import ytc  <--- इस लाइन को हटा दें
 
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'http_headers': {'Cookie': ytc.youtube()}  # ताज़ा कुकीज़ ऑटोमैटिकली
-        }
+# ... play_command फंक्शन के अंदर
+
+ydl_opts = {
+    'format': 'bestaudio/best',
+    'quiet': True,
+    'no_warnings': True,
+    'extract_flat': False,
+    'force_generic_extractor': False,
+    # YouTube के बॉट डिटेक्शन से बचने के लिए एक रियल ब्राउज़र की नकल करें
+    'http_headers': {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+    },
+    # अगर फिर भी एरर आए तो इसे अनकमेंट करें:
+    # 'cookiefile': 'cookies.txt',  # (वैकल्पिक) अगर आपके पास एक्सपोर्टेड कुकीज़ फ़ाइल है
+}
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"ytsearch:{query}", download=False)['entries'][0]
