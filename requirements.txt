@@ -1,6 +1,7 @@
 pyTelegramBotAPI
 flask
 gunicorn
+piped-api
 pymongo
 apscheduler
 pytz
