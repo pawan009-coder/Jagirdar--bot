@@ -671,42 +671,46 @@ def start_cmd(message):
         text = f"👑 **Daimond Batch mein swagat hai {message.from_user.first_name}!**\n\nAap toh pehle se hamare khaas aadmi ho. Game khelo aur balance badhao!\n(Apne dosto ko lana ho toh neeche wala button bhejo aur khud bhi join ho jao group main 👇)"
         bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
 
+from piped_api import PipedClient
+
+# PipedClient को एक बार ही इनिशियलाइज़ करना अच्छा रहता है
+PIPED_CLIENT = PipedClient()
+
 @bot.message_handler(commands=['play'])
 def play_command(message):
     chat_id = message.chat.id
     user = get_user(message.from_user)
 
-    # क्वेरी निकालना
+    # पहले की तरह ही क्वेरी निकालें
     if len(message.text.split()) < 2 and not message.reply_to_message:
         return bot.reply_to(message, "❌ कोई गाना या लिंक दो!")
     query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
 
-    wait_msg = bot.reply_to(message, f"🔍 '{query}' खोजा जा रहा है...")
+    wait_msg = bot.reply_to(message, f"🔍 '{query}' Piped पर खोजा जा रहा है...")
 
     try:
-        # 🚀 HF Space को रिक्वेस्ट भेजें
-        response = requests.post(
-            f"{HF_API}/get-stream",
-            json={"query": query, "requester": user['name']},
-            timeout=60  # HF Space को प्रोसेसिंग के लिए पर्याप्त समय
-        )
+        # 1. Piped API से सर्च करें
+        search_results = PIPED_CLIENT.search(query, limit=1)
+        if not search_results:
+            return bot.edit_message_text("❌ कोई वीडियो नहीं मिला।", chat_id, wait_msg.message_id)
 
-        if response.status_code != 200:
-            error_data = response.json().get('error', 'Unknown error')
-            return bot.edit_message_text(f"❌ गाना नहीं मिला: {error_data}", chat_id, wait_msg.message_id)
+        # 2. पहले रिजल्ट की डिटेल निकालें
+        first_result = search_results[0]
+        video_id = first_result['url'].split('=')[-1] # URL से वीडियो ID निकालें
+        title = first_result['title']
+        webpage_url = f"https://youtube.com/watch?v={video_id}"
 
-        data = response.json()
-        stream_url = data['stream_url']
-        title = data['title']
-        webpage_url = data['webpage_url']
-        duration = data.get('duration', 0)
+        # 3. वीडियो के ऑडियो स्ट्रीम की डिटेल लें
+        video_detail = PIPED_CLIENT.get_video(video_id)
+        # सबसे अच्छी क्वालिटी का ऑडियो स्ट्रीम चुनें (आमतौर पर लिस्ट में पहला)
+        if not video_detail.audio_streams:
+            return bot.edit_message_text("❌ इस वीडियो के लिए कोई ऑडियो स्ट्रीम नहीं मिली।", chat_id, wait_msg.message_id)
 
-        # ⏱️ 60 मिनट की लिमिट हटा दी गई है (या आप चाहें तो बढ़ा सकते हैं)
-        # अब कोई लिमिट नहीं, लेकिन आप चाहें तो 4 घंटे (14400 सेकंड) लगा सकते हैं
-        if duration > 14400:  # 4 घंटे से ज़्यादा हो तो मना करें
-            return bot.edit_message_text("❌ 4 घंटे से लंबे वीडियो नहीं चलाए जा सकते।", chat_id, wait_msg.message_id)
+        audio_stream = video_detail.audio_streams[0]
+        stream_url = audio_stream.url
+        duration = video_detail.duration
 
-        # ----- बाकी का म्यूज़िक लॉजिक (बिल्कुल वही रहेगा) -----
+        # 4. बाकी का म्यूज़िक लॉजिक (कोई बदलाव नहीं)
         settings = get_group_settings(chat_id)
         track = {
             'title': title,
