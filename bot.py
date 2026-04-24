@@ -681,36 +681,56 @@ def play_command(message):
     chat_id = message.chat.id
     user = get_user(message.from_user)
 
-    # पहले की तरह ही क्वेरी निकालें
+    # क्वेरी निकालना – स्टाइल में
     if len(message.text.split()) < 2 and not message.reply_to_message:
-        return bot.reply_to(message, "❌ कोई गाना या लिंक दो!")
+        return bot.reply_to(message, "🎧 **अरे भाई, गाने का नाम तो बता!**\nजैसे – `/play Believer`")
+
     query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
 
-    wait_msg = bot.reply_to(message, f"🔍 '{query}' Piped पर खोजा जा रहा है...")
+    # ⚡️ लीजेंडरी सर्च अलर्ट
+    wait_msg = bot.reply_to(message, f"🔮 **{user['name']}** ने मांगा गाना...\n🎶 `{query[:50]}` की तलाश जारी है...\n⚡ *Piped के सुरंगों में झाँक रहा हूँ...*", parse_mode="Markdown")
+
+    # Piped API इंस्टेंस – हीरो की सवारी
+    PIPED_API = "https://pipedapi.kavin.rocks"  # ज़रूरत पड़ने पर बदलें
 
     try:
-        # 1. Piped API से सर्च करें
-        search_results = PIPED_CLIENT.search(query, limit=1)
-        if not search_results:
-            return bot.edit_message_text("❌ कोई वीडियो नहीं मिला।", chat_id, wait_msg.message_id)
+        # 1. सर्च – तूफानी अंदाज़ में
+        search_url = f"{PIPED_API}/search"
+        params = {"q": query, "filter": "videos", "limit": 1}
+        resp = requests.get(search_url, params=params, timeout=15)
+        resp.raise_for_status()
+        search_data = resp.json()
 
-        # 2. पहले रिजल्ट की डिटेल निकालें
-        first_result = search_results[0]
-        video_id = first_result['url'].split('=')[-1] # URL से वीडियो ID निकालें
-        title = first_result['title']
+        items = search_data.get("items", [])
+        if not items:
+            return bot.edit_message_text("🚫 **ये क्या!** इस नाम का कोई गाना नहीं मिला बॉस।\nकुछ और ट्राई करो।", chat_id, wait_msg.message_id)
+
+        first = items[0]
+        video_id = first.get("url", "").split("=")[-1]
+        title = first.get("title", "Untitled")
         webpage_url = f"https://youtube.com/watch?v={video_id}"
 
-        # 3. वीडियो के ऑडियो स्ट्रीम की डिटेल लें
-        video_detail = PIPED_CLIENT.get_video(video_id)
-        # सबसे अच्छी क्वालिटी का ऑडियो स्ट्रीम चुनें (आमतौर पर लिस्ट में पहला)
-        if not video_detail.audio_streams:
-            return bot.edit_message_text("❌ इस वीडियो के लिए कोई ऑडियो स्ट्रीम नहीं मिली।", chat_id, wait_msg.message_id)
+        # 2. स्ट्रीम लिंक – जादुई आवाज़
+        streams_url = f"{PIPED_API}/streams/{video_id}"
+        resp2 = requests.get(streams_url, timeout=15)
+        resp2.raise_for_status()
+        stream_data = resp2.json()
 
-        audio_stream = video_detail.audio_streams[0]
-        stream_url = audio_stream.url
-        duration = video_detail.duration
+        audio_streams = stream_data.get("audioStreams", [])
+        if not audio_streams:
+            return bot.edit_message_text("🎵 **अफ़सोस!** इस गाने की ऑडियो स्ट्रीम गायब है।", chat_id, wait_msg.message_id)
 
-        # 4. बाकी का म्यूज़िक लॉजिक (कोई बदलाव नहीं)
+        best_audio = audio_streams[-1]  # सबसे दमदार क्वालिटी
+        stream_url = best_audio.get("url")
+        if not stream_url:
+            return bot.edit_message_text("🔗 **कनेक्शन कट गया!** स्ट्रीम URL नहीं निकल पाया।", chat_id, wait_msg.message_id)
+
+        duration = stream_data.get("duration", 0)
+        mins, secs = divmod(duration, 60)
+        hours, mins = divmod(mins, 60)
+        duration_str = f"{hours}घं {mins}मि {secs}से" if hours else f"{mins}मि {secs}से"
+
+        # 3. लीजेंडरी कतार – रॉयल एंट्री
         settings = get_group_settings(chat_id)
         track = {
             'title': title,
@@ -729,10 +749,21 @@ def play_command(message):
             groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
             send_now_playing(chat_id, track)
 
-        bot.edit_message_text(f"✅ **{title}** को कतार में जोड़ दिया गया।", chat_id, wait_msg.message_id)
+        # ✅ फाइनल मैसेज – किंग जैसा
+        response_text = (
+            f"🎼 **लीजेंडरी ट्रैक जुड़ गया!**\n\n"
+            f"📀 **{title}**\n"
+            f"⏱️ अवधि: `{duration_str}`\n"
+            f"👑 अनुरोध: *{user['name']}*\n"
+            f"🔗 [YouTube पर देखें]({webpage_url})\n\n"
+            f"🎧 अब बजेगा बेहतरीन म्यूजिक!"
+        )
+        bot.edit_message_text(response_text, chat_id, wait_msg.message_id, parse_mode="Markdown", disable_web_page_preview=True)
 
+    except requests.exceptions.RequestException as e:
+        bot.edit_message_text(f"🌐 **नेटवर्क की गड़बड़ी!** Piped से कनेक्ट नहीं हो पाया।\n`{e}`", chat_id, wait_msg.message_id)
     except Exception as e:
-        bot.edit_message_text(f"❌ एरर: {e}", chat_id, wait_msg.message_id)
+        bot.edit_message_text(f"💥 **धमाका!** कोई अनजान एरर आ गई।\n`{e}`", chat_id, wait_msg.message_id)
         
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
