@@ -671,99 +671,141 @@ def start_cmd(message):
         text = f"👑 **Daimond Batch mein swagat hai {message.from_user.first_name}!**\n\nAap toh pehle se hamare khaas aadmi ho. Game khelo aur balance badhao!\n(Apne dosto ko lana ho toh neeche wala button bhejo aur khud bhi join ho jao group main 👇)"
         bot.reply_to(message, text, reply_markup=markup, parse_mode="Markdown")
 
-from piped_api import PipedClient
+import requests
+import asyncio
+from urllib.parse import urlparse, parse_qs
 
-# PipedClient को एक बार ही इनिशियलाइज़ करना अच्छा रहता है
-PIPED_CLIENT = PipedClient()
+PIPED_INSTANCES = [
+    "https://pipedapi.lunar.icu", # Ye sabse stable hai abhi
+    "https://piped-api.lunar.icu", # Lunar ka 2nd domain
+    "https://api.piped.privacydev.net",
+    "https://pipedapi.syncpundit.io",
+    "https://pipedapi.adminforge.de",
+    "https://pipedapi.kavin.rocks", # Ye aksar down rehta
+]
+
+def extract_video_id(url):
+    """URL se video ID nikal - zyada reliable"""
+    if "youtu.be/" in url:
+        return url.split("youtu.be/")[1].split("?")[0]
+    if "v=" in url:
+        return parse_qs(urlparse(url).query)['v'][0]
+    return url # Agar seedha ID di hai
+
+def get_from_piped(endpoint, params=None, timeout=12):
+    """Sabhi Piped instances try karo. Headers add kiye"""
+    headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 10)'}
+    for instance in PIPED_INSTANCES:
+        try:
+            url = f"{instance}{endpoint}"
+            resp = requests.get(url, params=params, timeout=timeout, headers=headers)
+            # 502, 503, 504 sab skip karo
+            if resp.status_code >= 500:
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            # Piped error check
+            if data.get("error"):
+                continue
+            return data, instance
+        except (requests.exceptions.RequestException, ValueError, KeyError):
+            continue
+    return None, None
 
 @bot.message_handler(commands=['play'])
 def play_command(message):
     chat_id = message.chat.id
     user = get_user(message.from_user)
 
-    # क्वेरी निकालना – स्टाइल में
     if len(message.text.split()) < 2 and not message.reply_to_message:
         return bot.reply_to(message, "🎧 **अरे भाई, गाने का नाम तो बता!**\nजैसे – `/play Believer`")
 
     query = message.text.split(' ', 1)[1] if len(message.text.split()) > 1 else message.reply_to_message.text
+    wait_msg = bot.reply_to(message, f"🔮 **{user['name']}** ने मांगा गाना...\n🎶 `{query[:50]}` की खोज जारी है...", parse_mode="Markdown")
 
-    # ⚡️ लीजेंडरी सर्च अलर्ट
-    wait_msg = bot.reply_to(message, f"🔮 **{user['name']}** ने मांगा गाना...\n🎶 `{query[:50]}` की तलाश जारी है...\n⚡ *Piped के सुरंगों में झाँक रहा हूँ...*", parse_mode="Markdown")
+    # 1. Check karo URL hai ya search query
+    video_id = extract_video_id(query) if "youtu" in query else None
 
-    # Piped API इंस्टेंस – हीरो की सवारी
-    PIPED_API = "https://pipedapi.kavin.rocks"  # ज़रूरत पड़ने पर बदलें
+    if not video_id:
+        # Search karo
+        search_data, active_instance = get_from_piped("/search", params={"q": query, "filter": "videos"})
+        if not search_data or not search_data.get("items"):
+            return bot.edit_message_text("🚫 **कुछ नहीं मिला!**\nSpelling check kar ya kuch aur try kar.", chat_id, wait_msg.message_id)
 
-    try:
-        # 1. सर्च – तूफानी अंदाज़ में
-        search_url = f"{PIPED_API}/search"
-        params = {"q": query, "filter": "videos", "limit": 1}
-        resp = requests.get(search_url, params=params, timeout=15)
-        resp.raise_for_status()
-        search_data = resp.json()
-
-        items = search_data.get("items", [])
-        if not items:
-            return bot.edit_message_text("🚫 **ये क्या!** इस नाम का कोई गाना नहीं मिला बॉस।\nकुछ और ट्राई करो।", chat_id, wait_msg.message_id)
-
-        first = items[0]
-        video_id = first.get("url", "").split("=")[-1]
+        first = search_data["items"][0]
+        video_id = extract_video_id(first.get("url", ""))
         title = first.get("title", "Untitled")
-        webpage_url = f"https://youtube.com/watch?v={video_id}"
+    else:
+        active_instance = None # Baad me set hoga
+        title = "YouTube Video"
 
-        # 2. स्ट्रीम लिंक – जादुई आवाज़
-        streams_url = f"{PIPED_API}/streams/{video_id}"
-        resp2 = requests.get(streams_url, timeout=15)
-        resp2.raise_for_status()
-        stream_data = resp2.json()
+    if not video_id or len(video_id)!= 11:
+        return bot.edit_message_text("🚫 **Invalid YouTube link/video ID**", chat_id, wait_msg.message_id)
 
-        audio_streams = stream_data.get("audioStreams", [])
-        if not audio_streams:
-            return bot.edit_message_text("🎵 **अफ़सोस!** इस गाने की ऑडियो स्ट्रीम गायब है।", chat_id, wait_msg.message_id)
+    webpage_url = f"https://youtube.com/watch?v={video_id}"
 
-        best_audio = audio_streams[-1]  # सबसे दमदार क्वालिटी
-        stream_url = best_audio.get("url")
-        if not stream_url:
-            return bot.edit_message_text("🔗 **कनेक्शन कट गया!** स्ट्रीम URL नहीं निकल पाया।", chat_id, wait_msg.message_id)
+    # 2. Stream nikalo - Piped + Invidious fallback
+    stream_data, active_instance = get_from_piped(f"/streams/{video_id}")
 
-        duration = stream_data.get("duration", 0)
-        mins, secs = divmod(duration, 60)
-        hours, mins = divmod(mins, 60)
-        duration_str = f"{hours}घं {mins}मि {secs}से" if hours else f"{mins}मि {secs}से"
+    if not stream_data:
+        return bot.edit_message_text("🎵 **Sab instances fail ho gaye**\n2 min baad try kar bhai. YouTube ne block kar diya.", chat_id, wait_msg.message_id)
 
-        # 3. लीजेंडरी कतार – रॉयल एंट्री
-        settings = get_group_settings(chat_id)
-        track = {
-            'title': title,
-            'url': stream_url,
-            'webpage_url': webpage_url,
-            'requester': user['name'],
-            'requester_id': message.from_user.id
-        }
-        settings['queue'].append(track)
-        groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
+    # Title update karo agar search nahi kiya tha
+    if title == "YouTube Video":
+        title = stream_data.get("title", "Untitled")
 
-        if not settings.get('current_track'):
-            asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, stream_url), LOOP)
-            settings['current_track'] = track
-            settings['added_by'] = track['requester_id']
-            groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
-            send_now_playing(chat_id, track)
+    audio_streams = stream_data.get("audioStreams", [])
+    if not audio_streams:
+        return bot.edit_message_text("🎵 **Is video me audio hi nahi hai**\nLive stream ya silent video hoga", chat_id, wait_msg.message_id)
 
-        # ✅ फाइनल मैसेज – किंग जैसा
-        response_text = (
-            f"🎼 **लीजेंडरी ट्रैक जुड़ गया!**\n\n"
-            f"📀 **{title}**\n"
-            f"⏱️ अवधि: `{duration_str}`\n"
-            f"👑 अनुरोध: *{user['name']}*\n"
-            f"🔗 [YouTube पर देखें]({webpage_url})\n\n"
-            f"🎧 अब बजेगा बेहतरीन म्यूजिक!"
-        )
-        bot.edit_message_text(response_text, chat_id, wait_msg.message_id, parse_mode="Markdown", disable_web_page_preview=True)
+    # Fix: [-1] galat hai. Bitrate se sort karo
+    best_audio = max(audio_streams, key=lambda x: x.get('bitrate', 0))
+    stream_url = best_audio.get("url")
 
-    except requests.exceptions.RequestException as e:
-        bot.edit_message_text(f"🌐 **नेटवर्क की गड़बड़ी!** Piped से कनेक्ट नहीं हो पाया।\n`{e}`", chat_id, wait_msg.message_id)
-    except Exception as e:
-        bot.edit_message_text(f"💥 **धमाका!** कोई अनजान एरर आ गई।\n`{e}`", chat_id, wait_msg.message_id)
+    if not stream_url:
+        return bot.edit_message_text("🔗 **Stream URL nahi mila**", chat_id, wait_msg.message_id)
+
+    duration = stream_data.get("duration", 0)
+    # 3 ghante limit
+    if duration > 10800:
+        return bot.edit_message_text("⏱️ **3 ghante se lamba song nahi bajega**\nChhota wala try kar", chat_id, wait_msg.message_id)
+
+    mins, secs = divmod(duration, 60)
+    hours, mins = divmod(mins, 60)
+    duration_str = f"{hours}घं {mins}मि {secs}से" if hours else f"{mins}मि {secs}से"
+
+    # 3. Queue logic tera sahi hai
+    settings = get_group_settings(chat_id)
+    track = {
+        'title': title,
+        'url': stream_url,
+        'webpage_url': webpage_url,
+        'requester': user['name'],
+        'requester_id': message.from_user.id,
+        'duration': duration
+    }
+    settings['queue'].append(track)
+    groups_db.update_one({"_id": chat_id}, {"$set": {"queue": settings['queue']}})
+
+    if not settings.get('current_track'):
+        asyncio.run_coroutine_threadsafe(play_youtube_audio(chat_id, stream_url), LOOP)
+        settings['current_track'] = track
+        settings['added_by'] = track['requester_id']
+        groups_db.update_one({"_id": chat_id}, {"$set": {"current_track": track, "added_by": track['requester_id']}})
+        send_now_playing(chat_id, track)
+
+    # 4. Success message
+    instance_name = active_instance.split('//')[1] if active_instance else "Unknown"
+    response_text = (
+        f"🎼 **गाना तैयार है बॉस!**\n\n"
+        f"📀 **{title}**\n"
+        f"⏱️ अवधि: `{duration_str}`\n"
+        f"👑 अनुरोध: *{user['name']}*\n"
+        f"🔗 [YouTube पर देखें]({webpage_url})\n\n"
+        f"🌐 *Instance: `{instance_name}`*\n"
+        f"🎧 अब म्यूजिक शुरू!"
+    )
+    bot.edit_message_text(response_text, chat_id, wait_msg.message_id, parse_mode="Markdown", disable_web_page_preview=True)
         
 @bot.message_handler(commands=['gift'])
 def gift_cmd(message):
